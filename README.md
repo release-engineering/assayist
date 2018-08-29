@@ -12,6 +12,39 @@ To setup a development environment:
   $ python setup.py develop
   ```
 
+## Run the Unit Tests
+
+Since the unit tests require a running Neo4j instance, the tests are run in Docker containers using
+Docker Compose. The commands required to run the unit tests are abstracted in
+`scripts/run-tests.sh`. This script will create the Docker image required to run the tests based
+on `docker/Dockerfile-tests`, create a container with Neo4j, create another container to run
+the tests based on the built Docker image, run the tests, and then delete the two created
+containers.
+
+To install Docker and Docker Compose on Fedora, run:
+
+```bash
+$ sudo dnf install docker docker-compose
+```
+
+To start Docker, run:
+
+```bash
+$ sudo systemctl start docker
+```
+
+To run the tests, run:
+
+```bash
+$ sudo scripts/run-tests.sh
+```
+
+To run just a single test, you can run:
+
+```bash
+sudo scripts/run-tests.sh pytest3 -vvv tests/test_file::test_name
+```
+
 ## Code Styling
 
 The codebase conforms to the style enforced by `flake8` with the following exceptions:
