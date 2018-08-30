@@ -1,0 +1,23 @@
+# Inspired from https://github.com/neo4j-contrib/neomodel/blob/master/tests-with-docker-compose.sh
+version: '3'
+services:
+  assayist_tests:
+    build:
+      context: .
+      dockerfile: Dockerfile-tests
+    volumes:
+      - ../:/src:Z
+    links:
+      - neo4j
+    environment:
+      NEO4J_BOLT_URL: bolt://neo4j:neo4j@neo4j:7687
+  neo4j:
+    # We need enterprise for the time being because this release of APOC plugins only supports
+    # enterprise. This can be changed when APOC gets a new version.
+    image: neo4j:3.4-enterprise
+    volumes:
+      - /tmp/neo4j-plugins/:/plugins:Z
+    environment:
+      NEO4J_AUTH: none
+      NEO4J_dbms_security_procedures_unrestricted: apoc.*
+      NEO4J_ACCEPT_LICENSE_AGREEMENT: 'yes'
