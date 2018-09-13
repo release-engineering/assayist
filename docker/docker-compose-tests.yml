@@ -11,6 +11,7 @@ services:
       - neo4j
     environment:
       NEO4J_BOLT_URL: bolt://neo4j:neo4j@neo4j:7687
+      ASSAYIST_TESTING: 'true'
   neo4j:
     # We need enterprise for the time being because this release of APOC plugins only supports
     # enterprise. This can be changed when APOC gets a new version.
