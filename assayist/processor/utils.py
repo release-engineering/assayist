@@ -85,3 +85,80 @@ def download_build(build_identifier, output_dir):
             log.info(f'Downloaded {os.path.split(file_path)[-1]}')
 
     return artifacts
+
+
+def _rpm_to_cpio(rpm_file):
+    """
+    Convert an RPM file to a CPIO file.
+
+    :path str rpm_file: the path to the RPM file to convert
+    :return: the bytes of the CPIO file
+    :rtype: bytes
+    """
+    # Convert the RPM to a CPIO file
+    rpm2cpio_cmd = ['rpm2cpio', rpm_file]
+    rpm2cpio = subprocess.Popen(rpm2cpio_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    cpio_file, errors = rpm2cpio.communicate()
+    if rpm2cpio.returncode != 0:
+        raise RuntimeError(
+            f'The command "{" ".join(rpm2cpio_cmd)}" failed with: {errors.decode("utf-8")}')
+    return cpio_file
+
+
+def _unpack_cpio(cpio_file, output_dir):
+    """
+    Unpack CPIO file bytes.
+
+    :param bytes cpio_file: the CPIO file to unpack
+    """
+    cpio_cmd = ['cpio', '-idmv']
+    cpio = subprocess.Popen(
+        cpio_cmd, cwd=output_dir, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
+    _, errors = cpio.communicate(input=cpio_file)
+    if cpio.returncode != 0:
+        raise RuntimeError(
+            f'The command "{" ".join(cpio_cmd)}" failed with: {errors.decode("utf-8")}')
+
+
+def unpack_rpm(rpm_file, output_dir):
+    """
+    Unpack the RPM file to the specified directory.
+
+    :param str rpm_file: the path to the RPM to unpack
+    :param str output_dir: the path to unpack the RPM to
+    """
+    _assert_command('rpm2cpio')
+    _assert_command('cpio')
+
+    # Get the CPIO file
+    cpio_file = _rpm_to_cpio(rpm_file)
+    # Unpack the CPIO file
+    _unpack_cpio(cpio_file, output_dir)
+    log.info(f'Successfully unpacked {os.path.split(rpm_file)[-1]} to {output_dir}')
+
+
+def unpack_artifacts(artifacts, output_dir):
+    """
+    Unpack a list of artifacts to the specified directory.
+
+    :param list artifacts: a list of paths to artifacts to unpack
+    "param str output_dir: a path to a directory to unpack the artifacts
+    """
+    if output_dir and not os.path.isdir(output_dir):
+        raise RuntimeError(f'The passed in directory of "{output_dir}" does not exist')
+
+    for artifact in artifacts:
+        if not os.path.isfile(artifact):
+            raise RuntimeError(f'The artifact "{artifact}" could not be found')
+
+        log.info(f'Unpacking {os.path.split(artifact)[-1]}')
+        # Create a subdirectory to store the unpacked artifact
+        output_subdir = os.path.join(output_dir, os.path.split(artifact)[-1])
+        if not os.path.isdir(output_subdir):
+            os.mkdir(output_subdir)
+
+        extension = os.path.splitext(artifact)[-1]
+        if extension == '.rpm':
+            unpack_rpm(artifact, output_subdir)
+        else:
+            raise RuntimeError(f'"{artifact}" is not a supported file type to unpack')

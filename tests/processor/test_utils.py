@@ -106,3 +106,67 @@ def test_download_build_args_container(m_popen, m_get_koji_session, m_assert_com
         utils.download_build(12345, '/some/path')
     expected = ['koji', '--profile', 'brew', 'download-build', '12345', '--type', 'image']
     m_popen.assert_called_once_with(expected, cwd='/some/path', stdout=subprocess.PIPE)
+
+
+@mock.patch('subprocess.Popen')
+def test_rpm_to_cpio(m_popen):
+    """Test the _rpm_to_cpio function."""
+    m_process = mock.Mock()
+    output = b'the cpio file'
+    error = b''
+    m_process.communicate.return_value = (output, error)
+    m_process.returncode = 0
+    m_popen.return_value = m_process
+    rpm_file = '/path/to/some-rpm.rpm'
+    assert utils._rpm_to_cpio(rpm_file) == output
+    m_popen.assert_called_once_with(
+        ['rpm2cpio', rpm_file], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+
+
+@mock.patch('subprocess.Popen')
+def test__unpack_cpio(m_popen):
+    """Test the _unpack_cpio function."""
+    m_process = mock.Mock()
+    output = b''
+    error = b''
+    m_process.communicate.return_value = (output, error)
+    m_process.returncode = 0
+    m_popen.return_value = m_process
+    cpio_file = b'the cpio file'
+    output_dir = '/some/path'
+    assert utils._unpack_cpio(cpio_file, output_dir) is None
+    m_popen.assert_called_once_with(
+        ['cpio', '-idmv'], cwd=output_dir, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
+    m_process.communicate.assert_called_once_with(input=cpio_file)
+
+
+@mock.patch('assayist.processor.utils._assert_command')
+@mock.patch('assayist.processor.utils._unpack_cpio')
+@mock.patch('assayist.processor.utils._rpm_to_cpio')
+def test_unpack_rpm(m_rpm_to_cpio, m_unpack_cpio, m_assert_command):
+    """Test the unpack_rpm function."""
+    cpio = b'the cpio file'
+    m_rpm_to_cpio.return_value = cpio
+    rpm_file = '/path/to/some-rpm.rpm'
+    output_dir = '/some/path/output/some-rpm.rpm'
+    with mock.patch('os.path.isdir', return_value=False):
+        utils.unpack_rpm(rpm_file, output_dir)
+    m_rpm_to_cpio.assert_called_once_with(rpm_file)
+    m_unpack_cpio.assert_called_once_with(cpio, output_dir)
+
+
+@mock.patch('os.mkdir')
+@mock.patch('assayist.processor.utils.unpack_rpm')
+def test_unpack_artifacts(m_unpack_rpm, m_mkdir):
+    """Test the unpack_artifacts."""
+    artifacts = ['/path/to/some-rpm.rpm', '/path/to/some-rpm.src.rpm']
+    output_dir = '/path/to/output'
+    with mock.patch('os.path.isdir', side_effect=[True, False, False]):
+        with mock.patch('os.path.isfile', return_value=True):
+            utils.unpack_artifacts(artifacts, output_dir)
+    rpm_dirs = [f'{output_dir}/some-rpm.rpm', f'{output_dir}/some-rpm.src.rpm']
+    m_unpack_rpm.assert_has_calls([
+        mock.call(artifacts[0], rpm_dirs[0]),
+        mock.call(artifacts[1], rpm_dirs[1])])
+    assert m_unpack_rpm.call_count == 2
+    m_mkdir.assert_has_calls([mock.call(rpm_dirs[0]), mock.call(rpm_dirs[1])])
