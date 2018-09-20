@@ -7,6 +7,8 @@ RUN dnf -y install \
   nmap-ncat \
   python3-devel \
   python3-flake8 \
+  python3-koji \
+  python3-mock \
   python3-neomodel \
   python3-pytest \
   python3-pytest-cov \
