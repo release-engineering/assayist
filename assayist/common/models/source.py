@@ -48,3 +48,7 @@ class SourceLocation(AssayistStructuredNode):
     embedded_source_locations = RelationshipTo('SourceLocation', 'EMBEDS')
     # Source locations this source location is embedded in
     source_locations_embedded_in = RelationshipFrom('SourceLocation', 'EMBEDS')
+    # The upstream source location for this source location (applies to internal only)
+    upstream = RelationshipTo('SourceLocation', 'UPSTREAM')
+    # The source locations this source location is the upstream for
+    upstream_for = RelationshipFrom('SourceLocation', 'UPSTREAM')
