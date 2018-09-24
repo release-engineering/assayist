@@ -15,7 +15,8 @@ setup(
     license='GPLv3+',
     packages=[
         'assayist',
-        'assayist.common'
+        'assayist.common',
+        'assayist.processor'
     ],
     include_package_data=True,
     install_requires=requirements,
