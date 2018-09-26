@@ -16,7 +16,8 @@ setup(
     packages=[
         'assayist',
         'assayist.common',
-        'assayist.processor'
+        'assayist.processor',
+        'assayist.client'
     ],
     include_package_data=True,
     install_requires=requirements,

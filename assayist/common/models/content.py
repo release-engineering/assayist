@@ -26,7 +26,7 @@ class Build(AssayistStructuredNode):
     # The artifacts that were produced by this build
     artifacts = RelationshipTo('Artifact', 'PRODUCED')
     # The source location used for this build
-    source = RelationshipTo('.source.SourceLocation', 'BUILT_FROM', cardinality=ZeroOrOne)
+    source_location = RelationshipTo('.source.SourceLocation', 'BUILT_FROM', cardinality=ZeroOrOne)
 
 
 class Artifact(AssayistStructuredNode):
