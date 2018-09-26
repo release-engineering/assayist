@@ -5,8 +5,16 @@ A system for discovering and tracing the composition of shipped products.
 ## Development
 
 To setup a development environment:
-* Create and activate a [Python virtual environment](https://virtualenv.pypa.io/en/stable/)
-    (Python 3 is preferred)
+* Create and activate a [Python virtual environment](https://docs.python.org/3/library/venv.html)
+    (Python 3.6 or later is required):
+  ```bash
+  $ python3 -m venv --system-site-packages venv
+  ```
+* Start an instance of a [Neo4j](https://neo4j.com/docs/operations-manual/current/installation/docker/)
+    database:
+  ```bash
+  $ sudo docker run --publish=7474:7474 --publish=7687:7687 neo4j:3.3
+  ```
 * Install the API and its dependencies with:
   ```bash
   $ python setup.py develop
