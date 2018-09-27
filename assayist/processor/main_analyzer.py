@@ -6,7 +6,8 @@ from assayist.processor.logging import log
 
 class MainAnalyzer(Analyzer):
     """
-    Look at the json brew output and write neomodels for the basic items identified:
+    Look at the json brew output and write neomodels for the basic items identified.
+
      * The Component
      * The direct SourceLocation
      * The Build itself
@@ -14,17 +15,18 @@ class MainAnalyzer(Analyzer):
      * Any RPMs used in the buildroot
      * If it's an image build, an RPMs included in the image
     """
+
     buildroot_to_artifact = {}
 
     def map_buildroot_to_artifact(self, buildroot_id, artifact_id):
-        """ Store the mapping in self.buildroot_to_artifact """
+        """Store the mapping in self.buildroot_to_artifact."""
         if buildroot_id in self.buildroot_to_artifact:
             self.buildroot_to_artifact[buildroot_id].append(artifact_id)
         else:
             self.buildroot_to_artifact[buildroot_id] = [artifact_id]
 
     def read_and_save_buildroots(self):
-        """ Save and link the rpms used in the buildroot for each artifact. """
+        """Save and link the rpms used in the buildroot for each artifact."""
         buildroots_info = self.read_metadata_file(self.BUILDROOT_FILE)
         for buildroot_id in buildroots_info:
             log.debug("Creating artifacts for buildroot %s", buildroot_id)
@@ -37,7 +39,9 @@ class MainAnalyzer(Analyzer):
     def construct_and_save_component(self, build_type, build_info):
         """
         Read the build info and contruct the Component.
+
         Returns: (Component, canonical_version)
+
         """
         if build_type == 'build':  # rpm build
             cnamespace = 'redhat'
@@ -66,7 +70,7 @@ class MainAnalyzer(Analyzer):
         return component, cversion
 
     def run(self):
-        """ Do the actual processing. """
+        """Do the actual processing."""
         build_info = self.read_metadata_file(self.BUILD_FILE)
         task_info = self.read_metadata_file(self.TASK_FILE)
 

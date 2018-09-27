@@ -4,10 +4,10 @@ import mock
 import pytest
 
 from assayist.processor import base, main_analyzer
-from assayist.common.models.source import Component, SourceLocation
+from assayist.common.models.source import SourceLocation
 from assayist.common.models.content import Artifact, Build
 
-#RPM INFO BLOBS
+# RPM INFO BLOBS
 VIM_1_2_3 = {'buildroot_id': '1',
              'id': '1',
              'name': 'vim',
@@ -86,6 +86,7 @@ SOURCE_URL = "git://pkgs.devel.redhat.com/containers/virt-api#e9614e8eed02befd8e
 
 # Test the basic function of the get_or_create methods
 def test_get_or_create_build():
+    """Test the basic function of get_or_create_build."""
     analyzer = main_analyzer.MainAnalyzer()
     build = analyzer.get_or_create_build('1', 'type1')
     assert build.id_ == '1'
@@ -100,7 +101,7 @@ def test_get_or_create_build():
     assert Build.nodes.get_or_none(id_='1').id == build.id
 
 
-def test_get_or_create_rpm_artifact_from_hash():
+def test_get_or_create_rpm_artifact():
     """Test the basic function of the get_or_create_rpm_artifact function."""
     analyzer = main_analyzer.MainAnalyzer()
     artifact = analyzer.get_or_create_rpm_artifact(
@@ -110,7 +111,7 @@ def test_get_or_create_rpm_artifact_from_hash():
         version=VIM_1_2_3['version'],
         release=VIM_1_2_3['release'],
         arch=VIM_1_2_3['arch'],
-        checksum=VIM_1_2_3['checksum'])
+        checksum=VIM_1_2_3['payloadhash'])
 
     assert 'vim-1:2-3.el7' == artifact.filename
     assert VIM_1_2_3['payloadhash'] == artifact.checksum
@@ -126,7 +127,7 @@ def test_get_or_create_rpm_artifact_from_hash():
         version=VIM_2_3['version'],
         release=VIM_2_3['release'],
         arch=VIM_2_3['arch'],
-        checksum=VIM_2_3['checksum'])
+        checksum=VIM_2_3['payloadhash'])
 
     assert 'vim-0:2-3.el7' == artifact.filename
 
@@ -138,7 +139,7 @@ def test_get_or_create_rpm_artifact_from_hash():
         version=VIM_2_3['version'],
         release=VIM_2_3['release'],
         arch=VIM_2_3['arch'],
-        checksum=VIM_2_3['checksum'])
+        checksum=VIM_2_3['payloadhash'])
     assert artifact.id == artifact2.id
 
 
@@ -191,7 +192,7 @@ def test_get_or_create_source_location():
     """Test the basic function of the get_or_create_source_location function."""
     analyzer = main_analyzer.MainAnalyzer()
     url = 'www.whatever.com'
-    canonical_version='pi'
+    canonical_version = 'pi'
     sl = analyzer.get_or_create_source_location(
         url=url,
         canonical_version=canonical_version)
@@ -232,12 +233,13 @@ def test_get_or_create_component():
 
 
 def good_run(self):
+    """Mock a simple run and succeed."""
     self.get_or_create_build('1234', '1')
 
 
 @mock.patch('assayist.processor.main_analyzer.MainAnalyzer.run', new=good_run)
 def test_main_good():
-    """ Ensure that the main function normally runs and commites successfully """
+    """Ensure that the main function normally runs and commites successfully."""
     analyzer = main_analyzer.MainAnalyzer()
     analyzer.main()
     # should have been successfully created
@@ -245,21 +247,23 @@ def test_main_good():
 
 
 def bad_run(self):
+    """Mock a simple run and throw an exception."""
     self.get_or_create_build('4321', '2')
     raise ValueError()
 
 
 @mock.patch('assayist.processor.main_analyzer.MainAnalyzer.run', new=bad_run)
 def test_main_bad():
-    """ Ensure that the main function rolls back in the case of an error. """
+    """Ensure that the main function rolls back in the case of an error."""
     analyzer = main_analyzer.MainAnalyzer()
     with pytest.raises(ValueError):
         analyzer.main()
 
     assert not Build.nodes.get_or_none(id_='4321')  # should have been rolled back
 
+
 def test_construct_and_save_component():
-    """ Test the basic functioning of the construct_and_save_component method. """
+    """Test the basic functioning of the construct_and_save_component method."""
     analyzer = main_analyzer.MainAnalyzer()
     btype = 'build'  # rpm build
     binfo = {
@@ -302,7 +306,7 @@ global_build_type = 'buildContainer'
 
 
 def read_metadata_test_data(self, FILE):
-    """ Mock out this function so we can use test data. """
+    """Mock out this function so we can use test data."""
     global global_build_type
     if FILE == base.Analyzer.MESSAGE_FILE:
         return {'info': {'build_id': 759153}}
@@ -331,7 +335,9 @@ def read_metadata_test_data(self, FILE):
 def test_read_and_save_buildroots():
     """
     Test the basic function of the build_and_save_buildroots function.
-    The links to other artifacts won't exist yet, but the buildroot artifacts themselves should exist.
+
+    The links to other artifacts won't exist yet, but the buildroot artifacts themselves should
+    exist.
     """
     analyzer = main_analyzer.MainAnalyzer()
     analyzer.read_and_save_buildroots()
@@ -343,6 +349,8 @@ def test_read_and_save_buildroots():
 @mock.patch('assayist.processor.base.Analyzer.read_metadata_file', new=read_metadata_test_data)
 def test_run():
     """
+    Test the general working of the main_analyzer.
+
     Ensure that the appropriate nodes and edges are created that we would expect from
     the read_metadata_test_data function.
     """
