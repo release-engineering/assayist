@@ -75,3 +75,20 @@ Get a resource from Neo4j.
 :raises NotFound: if the item is not found
 :raises ValidationError: if an invalid resource was requested
 ```
+
+## Running the Processor
+
+Using a container is the preferred method for running the Assayist processor. There is a
+[Dockerfile](docker/Dockerfile) included in this repository, and it accepts two arguments. The
+first argument is `rcm_tools_repo_file`, which should be a link to a DNF repo file that includes
+the required builds not available (e.g. `brewkoji`) in the official Fedora repos. The second
+argument is `ca_file`, which should be a link to the internal CA that Assayist must trust for the
+processors to run successfully.
+
+To build the container image, run the following in your cloned repository:
+```bash
+$ sudo docker build \
+    --build-arg rcm_tools_repo_file=https://domain.local/path/to/repo.repo \
+    --build-arg ca_file=https://domain.local/path/to/ca.crt \
+    -f docker/Dockerfile .
+```
