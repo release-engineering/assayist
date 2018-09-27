@@ -1,8 +1,11 @@
 # SPDX-License-Identifier: GPL-3.0+
 
+import json
 import os
-import subprocess
 import shutil
+import subprocess
+import tarfile
+import zipfile
 
 import koji
 
@@ -70,12 +73,14 @@ def download_build(build_identifier, output_dir):
         # For some reason, any errors are streamed to stdout and not stderr
         output, _ = p.communicate()
         output = output.decode('utf-8')
-        if p.returncode != 0 and 'available' not in output:
+        if p.returncode != 0:
+            if 'No' in output and 'available' in output:
+                continue
             raise RuntimeError(f'The command "{" ".join(cmd)}" failed with: {output}')
 
         for line in output.strip().split('\n'):
             if line.startswith(download_prefix):
-                file_path = os.path.join(output_dir, line.split(download_prefix)[-1])
+                file_path = os.path.join(output_dir, line.split(download_prefix)[-1].lstrip('/'))
                 artifacts.append(file_path)
                 log.info(f'Downloaded {os.path.split(file_path)[-1]}')
 
@@ -132,12 +137,64 @@ def unpack_rpm(rpm_file, output_dir):
     log.info(f'Successfully unpacked {os.path.split(rpm_file)[-1]} to {output_dir}')
 
 
+def unpack_container_image(container_image_file, output_dir):
+    """
+    Unpack a container image to the specified directory.
+
+    :param str container_image_file: the path to the container image file to unpack
+    :param str output_dir: the path to unpack the container image to
+    """
+    # Unpack the manifest.json file from which we figure out the latest image layer
+    with tarfile.open(container_image_file) as tar:
+        manifest_file = tar.extractfile('manifest.json')
+        manifest_data = json.loads(manifest_file.read().decode('utf-8'))
+        layer_to_unpack = manifest_data[0]['Layers'][-1]
+
+        # Unpack the last layer, which itself is a .tar file
+        tar.extract(layer_to_unpack)
+
+    # Extract the file system contents from the last layer
+    with tarfile.open(layer_to_unpack) as tar:
+        tar.extractall(output_dir)
+
+    # Remove extracted layer .tar file
+    shutil.rmtree(os.path.split(layer_to_unpack)[0])
+
+    log.info(f'Successfully unpacked {container_image_file} to {output_dir}')
+
+
+def unpack_zip(zip_file, output_dir):
+    """
+    Unpack a ZIP-like archive file to the specified directory.
+
+    :param str zip_file: the path to the archive file to unpack
+    :param str output_dir: the path to unpack the archive to
+    """
+    with zipfile.ZipFile(zip_file) as zip_:
+        zip_.extractall(output_dir)
+
+    log.info(f'Successfully unpacked {zip_file} to {output_dir}')
+
+
+def unpack_tar(tar_file, output_dir):
+    """
+    Unpack a TAR-like archive file to the specified directory.
+
+    :param str tar_file: the path to the archive file to unpack
+    :param str output_dir: the path to unpack the archive to
+    """
+    with tarfile.open(tar_file) as tar:
+        tar.extractall(output_dir)
+
+    log.info(f'Successfully unpacked {tar_file} to {output_dir}')
+
+
 def unpack_artifacts(artifacts, output_dir):
     """
     Unpack a list of artifacts to the specified directory.
 
     :param list artifacts: a list of paths to artifacts to unpack
-    "param str output_dir: a path to a directory to unpack the artifacts
+    :param str output_dir: a path to a directory to unpack the artifacts
     """
     if output_dir and not os.path.isdir(output_dir):
         raise RuntimeError(f'The passed in directory of "{output_dir}" does not exist')
@@ -146,14 +203,31 @@ def unpack_artifacts(artifacts, output_dir):
         if not os.path.isfile(artifact):
             raise RuntimeError(f'The artifact "{artifact}" could not be found')
 
-        log.info(f'Unpacking {os.path.split(artifact)[-1]}')
-        # Create a subdirectory to store the unpacked artifact
-        output_subdir = os.path.join(output_dir, os.path.split(artifact)[-1])
-        if not os.path.isdir(output_subdir):
-            os.mkdir(output_subdir)
+        artifact_filename = os.path.split(artifact)[-1]
+        log.info(f'Unpacking {artifact_filename}')
 
-        extension = os.path.splitext(artifact)[-1]
-        if extension == '.rpm':
+        if artifact_filename.startswith('docker-image') and artifact_filename.endswith('.tar.gz'):
+            output_subdir = os.path.join(output_dir, 'container_layer', artifact_filename)
+            os.makedirs(output_subdir)
+            unpack_container_image(artifact, output_subdir)
+
+        elif artifact_filename.endswith('.rpm'):
+            output_subdir = os.path.join(output_dir, 'rpm', artifact_filename)
+            os.makedirs(output_subdir)
             unpack_rpm(artifact, output_subdir)
+
+        elif zipfile.is_zipfile(artifact):
+            output_subdir = os.path.join(output_dir, 'non-rpm', artifact_filename)
+            os.makedirs(output_subdir)
+            unpack_zip(artifact, output_subdir)
+
+        elif tarfile.is_tarfile(artifact):
+            output_subdir = os.path.join(output_dir, 'non-rpm', artifact_filename)
+            os.makedirs(output_subdir)
+            unpack_tar(artifact, output_subdir)
+
         else:
-            raise RuntimeError(f'"{artifact}" is not a supported file type to unpack')
+            # Files such as .pom do not need to be unpacked, others such as .gem are not yet
+            # supported.
+            log.info(f'Skipping unpacking (unsupported archive type or not an archive): {artifact}')
+            continue
