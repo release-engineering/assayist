@@ -35,7 +35,7 @@ def download_build(build_identifier, output_dir):
     """
     Download the artifacts associated with a Koji build.
 
-    :param str/int build_identifer: the string of the builds NVR or the integer of the build ID
+    :param str/int build_identifier: the string of the builds NVR or the integer of the build ID
     :param str output_dir: the path to download the the archives to
     :return: a list of paths to the downloaded archives
     :rtype: list
@@ -52,37 +52,32 @@ def download_build(build_identifier, output_dir):
 
     # There's no API for this, so it's better to just call the CLI directly
     cmd = ['koji', '--profile', config.koji_profile, 'download-build', str(build['id'])]
-    build_type = None
-    if build['task_id']:
-        build_task = session.getTaskInfo(build['task_id'])
-        if not build_task:
-            raise RuntimeError('The Koji task "{0}" was not found'.format(build['task_id']))
-        if build_task['method'] == 'maven':
-            build_type = 'maven'
-        elif build_task['method'] != 'build':
-            raise RuntimeError('The Koji build type with build method "{0}" is unsupported'
-                               .format(build_task['method']))
-    elif (build['extra'] or {}).get('container_koji_task_id'):
-        build_type = 'image'
 
-    if build_type:
-        cmd.append('--type')
-        cmd.append(build_type)
+    # Because builds may contain artifacts of different types (e.g. RPMs as well as JARs),
+    # cycle through all types of artifacts: RPMs (default), Maven archives (--type maven),
+    # and container images (--type image); purposefully ignoring Windows builds for now (--type
+    # win).
+    build_type_opts = ([], ['--type', 'maven'], ['--type', 'image'])
 
     log.info(f'Downloading build {build["id"]} from Koji')
-    p = subprocess.Popen(cmd, cwd=output_dir, stdout=subprocess.PIPE)
-    # For some reason, any errors are streamed to stdout and not stderr
-    output, _ = p.communicate()
-    if p.returncode != 0:
-        raise RuntimeError(f'The command "{" ".join(cmd)}" failed with: {output}')
-
     download_prefix = 'Downloading: '
     artifacts = []
-    for line in output.decode('utf-8').strip().split('\n'):
-        if line.startswith(download_prefix):
-            file_path = os.path.join(output_dir, line.split(download_prefix)[-1])
-            artifacts.append(file_path)
-            log.info(f'Downloaded {os.path.split(file_path)[-1]}')
+
+    for build_type in build_type_opts:
+        download_cmd = cmd + build_type
+        p = subprocess.Popen(download_cmd, cwd=output_dir, stdout=subprocess.PIPE)
+
+        # For some reason, any errors are streamed to stdout and not stderr
+        output, _ = p.communicate()
+        output = output.decode('utf-8')
+        if p.returncode != 0 and 'available' not in output:
+            raise RuntimeError(f'The command "{" ".join(cmd)}" failed with: {output}')
+
+        for line in output.strip().split('\n'):
+            if line.startswith(download_prefix):
+                file_path = os.path.join(output_dir, line.split(download_prefix)[-1])
+                artifacts.append(file_path)
+                log.info(f'Downloaded {os.path.split(file_path)[-1]}')
 
     return artifacts
 
