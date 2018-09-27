@@ -59,7 +59,7 @@ class MainAnalyzer(Analyzer):
         else:
             return None, None
 
-        self.get_or_create_component(
+        component = self.get_or_create_component(
             canonical_namespace=cnamespace,
             canonical_name=cname,
             canonical_type=ctype)
@@ -84,7 +84,7 @@ class MainAnalyzer(Analyzer):
 
         # construct the build object
         build = self.get_or_create_build(build_info['id'], build_type)
-        build.source.connect(sourceLocation)
+        build.source_location.connect(sourceLocation)
 
         # if it's an rpm build look at the rpm output and create artifacts
         if build_type == 'build':
@@ -94,14 +94,15 @@ class MainAnalyzer(Analyzer):
                 rpm = self.get_or_create_rpm_artifact_from_hash(rpm_info)
                 rpm.build.connect(build)
                 self.map_buildroot_to_artifact(buildroot_id, rpm)
-                self.read_and_save_buildroots()
-                return  # finished processing, rpm builds don't have anything else
+
+            self.read_and_save_buildroots()
+            return  # finished processing, rpm builds don't have anything else
 
         # else not an rpm build, record the artifacts
         archives_info = self.read_metadata_file(self.ARCHIVE_FILE)
         images_rpm_info = self.read_metadata_file(self.IMAGE_RPM_FILE)
         for archive_info in archives_info:
-            log.debug("Creating build artifact %s", buildroot_id)
+            log.debug("Creating build artifact %s", archive_info['id'])
             aid = archive_info['id']
             checksum = archive_info['checksum']
             filename = archive_info['filename']
@@ -122,6 +123,8 @@ class MainAnalyzer(Analyzer):
                 for rpm_info in images_rpm_info[aid]:
                     rpm = self.get_or_create_rpm_artifact_from_hash(rpm_info)
                     archive.embedded_artifacts.connect(rpm)
+
+        self.read_and_save_buildroots()
 
 
 if __name__ == "__main__":

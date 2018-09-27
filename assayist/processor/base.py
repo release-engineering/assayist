@@ -23,8 +23,8 @@ class Analyzer(ABC):
 
     def main(self):
         """ Call this to run the analyzer. """
-        neomodel.neomodel_config.DATABASE_URL = config.DATABASE_URL
-        neomodel.neomodel_config.AUTO_INSTALL_LABELS = True
+        neomodel.config.DATABASE_URL = config.DATABASE_URL
+        neomodel.config.AUTO_INSTALL_LABELS = True
         # run the analyzer in a transaction
         neomodel.db.begin()
         try:
@@ -99,14 +99,14 @@ class Analyzer(ABC):
 
     def get_or_create_source_location(self, url, canonical_version):
         """ Get or create a SourceLocation """
-        sl = source.SourceLocation(url=url)
+        sl = source.SourceLocation.nodes.get_or_none(url=url)
         if sl:
             return sl
         return source.SourceLocation(url=url, canonical_version=canonical_version).save()
 
     def get_or_create_component(self, canonical_namespace, canonical_name, canonical_type):
         """ Get or create Component. """
-        component = source.Component(
+        component = source.Component.nodes.get_or_none(
             canonical_namespace=canonical_namespace,
             canonical_name=canonical_name,
             canonical_type=canonical_type)
