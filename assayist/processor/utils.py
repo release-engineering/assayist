@@ -13,7 +13,7 @@ from assayist.processor.configuration import config
 from assayist.processor.logging import log
 
 
-def get_koji_session():
+def get_koji_session():  # pragma: no cover
     """
     Generate a Koji session.
 
@@ -163,7 +163,7 @@ def unpack_container_image(container_image_file, output_dir):
     log.info(f'Successfully unpacked {container_image_file} to {output_dir}')
 
 
-def unpack_zip(zip_file, output_dir):
+def unpack_zip(zip_file, output_dir):  # pragma: no cover
     """
     Unpack a ZIP-like archive file to the specified directory.
 
@@ -176,7 +176,7 @@ def unpack_zip(zip_file, output_dir):
     log.info(f'Successfully unpacked {zip_file} to {output_dir}')
 
 
-def unpack_tar(tar_file, output_dir):
+def unpack_tar(tar_file, output_dir):  # pragma: no cover
     """
     Unpack a TAR-like archive file to the specified directory.
 
