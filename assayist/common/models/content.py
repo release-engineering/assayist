@@ -50,7 +50,29 @@ class Artifact(AssayistStructuredNode):
     build = RelationshipFrom('Build', 'PRODUCED', cardinality=ZeroOrOne)
     # The artifacts that were in the buildroot when this artifact was built
     buildroot_artifacts = RelationshipTo('Artifact', 'BUILT_WITH')
+    # The external artifacts that were in the buildroot when this artifact was built
+    buildroot_external_artifacts = RelationshipTo('ExternalArtifact', 'BUILT_WITH')
     # The artifacts that are embedded in this artifact
     embedded_artifacts = RelationshipTo('Artifact', 'EMBEDS')
+    # The external artifacts that are embedded in this artifact
+    embedded_external_artifacts = RelationshipTo('ExternalArtifact', 'EMBEDS')
     # The source locations that embedded in this artifact
     embedded_source_locations = RelationshipTo('.source.SourceLocation', 'EMBEDS')
+
+
+class ExternalArtifact(AssayistStructuredNode):
+    """
+    The definition of an ExternalArtifact node.
+
+    These represent artifacts that are not built internally and are downloaded directly from
+    upstream and used during builds.
+    """
+
+    checksum = StringProperty()
+    identifier = StringProperty(unique_index=True)
+    type = StringProperty(index=True)
+
+    # The artifacts that used this external artifact in their buildroot
+    artifacts_in_buildroot_for = RelationshipFrom('Artifact', 'BUILT_WITH')
+    # The artifacts this external artifact is embedded in
+    artifacts_embedded_in = RelationshipFrom('Artifact', 'EMBEDS')
