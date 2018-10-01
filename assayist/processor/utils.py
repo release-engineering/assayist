@@ -1,8 +1,11 @@
 # SPDX-License-Identifier: GPL-3.0+
 
+import json
 import os
-import subprocess
 import shutil
+import subprocess
+import tarfile
+import zipfile
 
 import koji
 
@@ -10,7 +13,7 @@ from assayist.processor.configuration import config
 from assayist.processor.logging import log
 
 
-def get_koji_session():
+def get_koji_session():  # pragma: no cover
     """
     Generate a Koji session.
 
@@ -35,7 +38,7 @@ def download_build(build_identifier, output_dir):
     """
     Download the artifacts associated with a Koji build.
 
-    :param str/int build_identifer: the string of the builds NVR or the integer of the build ID
+    :param str/int build_identifier: the string of the builds NVR or the integer of the build ID
     :param str output_dir: the path to download the the archives to
     :return: a list of paths to the downloaded archives
     :rtype: list
@@ -52,37 +55,34 @@ def download_build(build_identifier, output_dir):
 
     # There's no API for this, so it's better to just call the CLI directly
     cmd = ['koji', '--profile', config.koji_profile, 'download-build', str(build['id'])]
-    build_type = None
-    if build['task_id']:
-        build_task = session.getTaskInfo(build['task_id'])
-        if not build_task:
-            raise RuntimeError('The Koji task "{0}" was not found'.format(build['task_id']))
-        if build_task['method'] == 'maven':
-            build_type = 'maven'
-        elif build_task['method'] != 'build':
-            raise RuntimeError('The Koji build type with build method "{0}" is unsupported'
-                               .format(build_task['method']))
-    elif (build['extra'] or {}).get('container_koji_task_id'):
-        build_type = 'image'
 
-    if build_type:
-        cmd.append('--type')
-        cmd.append(build_type)
+    # Because builds may contain artifacts of different types (e.g. RPMs as well as JARs),
+    # cycle through all types of artifacts: RPMs (default), Maven archives (--type maven),
+    # and container images (--type image); purposefully ignoring Windows builds for now (--type
+    # win).
+    build_type_opts = ([], ['--type', 'maven'], ['--type', 'image'])
 
     log.info(f'Downloading build {build["id"]} from Koji')
-    p = subprocess.Popen(cmd, cwd=output_dir, stdout=subprocess.PIPE)
-    # For some reason, any errors are streamed to stdout and not stderr
-    output, _ = p.communicate()
-    if p.returncode != 0:
-        raise RuntimeError(f'The command "{" ".join(cmd)}" failed with: {output}')
-
     download_prefix = 'Downloading: '
     artifacts = []
-    for line in output.decode('utf-8').strip().split('\n'):
-        if line.startswith(download_prefix):
-            file_path = os.path.join(output_dir, line.split(download_prefix)[-1])
-            artifacts.append(file_path)
-            log.info(f'Downloaded {os.path.split(file_path)[-1]}')
+
+    for build_type in build_type_opts:
+        download_cmd = cmd + build_type
+        p = subprocess.Popen(download_cmd, cwd=output_dir, stdout=subprocess.PIPE)
+
+        # For some reason, any errors are streamed to stdout and not stderr
+        output, _ = p.communicate()
+        output = output.decode('utf-8')
+        if p.returncode != 0:
+            if 'No' in output and 'available' in output:
+                continue
+            raise RuntimeError(f'The command "{" ".join(cmd)}" failed with: {output}')
+
+        for line in output.strip().split('\n'):
+            if line.startswith(download_prefix):
+                file_path = os.path.join(output_dir, line.split(download_prefix)[-1].lstrip('/'))
+                artifacts.append(file_path)
+                log.info(f'Downloaded {os.path.split(file_path)[-1]}')
 
     return artifacts
 
@@ -137,12 +137,64 @@ def unpack_rpm(rpm_file, output_dir):
     log.info(f'Successfully unpacked {os.path.split(rpm_file)[-1]} to {output_dir}')
 
 
+def unpack_container_image(container_image_file, output_dir):
+    """
+    Unpack a container image to the specified directory.
+
+    :param str container_image_file: the path to the container image file to unpack
+    :param str output_dir: the path to unpack the container image to
+    """
+    # Unpack the manifest.json file from which we figure out the latest image layer
+    with tarfile.open(container_image_file) as tar:
+        manifest_file = tar.extractfile('manifest.json')
+        manifest_data = json.loads(manifest_file.read().decode('utf-8'))
+        layer_to_unpack = manifest_data[0]['Layers'][-1]
+
+        # Unpack the last layer, which itself is a .tar file
+        tar.extract(layer_to_unpack)
+
+    # Extract the file system contents from the last layer
+    with tarfile.open(layer_to_unpack) as tar:
+        tar.extractall(output_dir)
+
+    # Remove extracted layer .tar file
+    shutil.rmtree(os.path.split(layer_to_unpack)[0])
+
+    log.info(f'Successfully unpacked {container_image_file} to {output_dir}')
+
+
+def unpack_zip(zip_file, output_dir):  # pragma: no cover
+    """
+    Unpack a ZIP-like archive file to the specified directory.
+
+    :param str zip_file: the path to the archive file to unpack
+    :param str output_dir: the path to unpack the archive to
+    """
+    with zipfile.ZipFile(zip_file) as zip_:
+        zip_.extractall(output_dir)
+
+    log.info(f'Successfully unpacked {zip_file} to {output_dir}')
+
+
+def unpack_tar(tar_file, output_dir):  # pragma: no cover
+    """
+    Unpack a TAR-like archive file to the specified directory.
+
+    :param str tar_file: the path to the archive file to unpack
+    :param str output_dir: the path to unpack the archive to
+    """
+    with tarfile.open(tar_file) as tar:
+        tar.extractall(output_dir)
+
+    log.info(f'Successfully unpacked {tar_file} to {output_dir}')
+
+
 def unpack_artifacts(artifacts, output_dir):
     """
     Unpack a list of artifacts to the specified directory.
 
     :param list artifacts: a list of paths to artifacts to unpack
-    "param str output_dir: a path to a directory to unpack the artifacts
+    :param str output_dir: a path to a directory to unpack the artifacts
     """
     if output_dir and not os.path.isdir(output_dir):
         raise RuntimeError(f'The passed in directory of "{output_dir}" does not exist')
@@ -151,14 +203,31 @@ def unpack_artifacts(artifacts, output_dir):
         if not os.path.isfile(artifact):
             raise RuntimeError(f'The artifact "{artifact}" could not be found')
 
-        log.info(f'Unpacking {os.path.split(artifact)[-1]}')
-        # Create a subdirectory to store the unpacked artifact
-        output_subdir = os.path.join(output_dir, os.path.split(artifact)[-1])
-        if not os.path.isdir(output_subdir):
-            os.mkdir(output_subdir)
+        artifact_filename = os.path.split(artifact)[-1]
+        log.info(f'Unpacking {artifact_filename}')
 
-        extension = os.path.splitext(artifact)[-1]
-        if extension == '.rpm':
+        if artifact_filename.startswith('docker-image') and artifact_filename.endswith('.tar.gz'):
+            output_subdir = os.path.join(output_dir, 'container_layer', artifact_filename)
+            os.makedirs(output_subdir)
+            unpack_container_image(artifact, output_subdir)
+
+        elif artifact_filename.endswith('.rpm'):
+            output_subdir = os.path.join(output_dir, 'rpm', artifact_filename)
+            os.makedirs(output_subdir)
             unpack_rpm(artifact, output_subdir)
+
+        elif zipfile.is_zipfile(artifact):
+            output_subdir = os.path.join(output_dir, 'non-rpm', artifact_filename)
+            os.makedirs(output_subdir)
+            unpack_zip(artifact, output_subdir)
+
+        elif tarfile.is_tarfile(artifact):
+            output_subdir = os.path.join(output_dir, 'non-rpm', artifact_filename)
+            os.makedirs(output_subdir)
+            unpack_tar(artifact, output_subdir)
+
         else:
-            raise RuntimeError(f'"{artifact}" is not a supported file type to unpack')
+            # Files such as .pom do not need to be unpacked, others such as .gem are not yet
+            # supported.
+            log.info(f'Skipping unpacking (unsupported archive type or not an archive): {artifact}')
+            continue
