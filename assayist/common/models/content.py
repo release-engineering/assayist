@@ -39,6 +39,8 @@ class Artifact(AssayistStructuredNode):
     architecture = StringProperty()
     archive_id = StringProperty(required=True, unique_index=True)
     filename = StringProperty()
+    # A one-word description of the type of file this describes (to aid in filtering)
+    type = StringProperty(required=True)
 
     # The artifacts this artifact is embedded in
     artifacts_embedded_in = RelationshipFrom('Artifact', 'EMBEDS')
