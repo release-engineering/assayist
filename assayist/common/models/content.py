@@ -38,7 +38,6 @@ class Artifact(AssayistStructuredNode):
 
     architecture = StringProperty()
     archive_id = StringProperty(required=True, unique_index=True)
-    checksum = StringProperty()
     filename = StringProperty()
 
     # The artifacts this artifact is embedded in
@@ -51,6 +50,8 @@ class Artifact(AssayistStructuredNode):
     buildroot_artifacts = RelationshipTo('Artifact', 'BUILT_WITH')
     # The external artifacts that were in the buildroot when this artifact was built
     buildroot_external_artifacts = RelationshipTo('ExternalArtifact', 'BUILT_WITH')
+    # The checksums associated with this artifact
+    checksums = RelationshipFrom('Checksum', 'CHECKSUMS')
     # The artifacts that are embedded in this artifact
     embedded_artifacts = RelationshipTo('Artifact', 'EMBEDS')
     # The external artifacts that are embedded in this artifact
@@ -67,7 +68,6 @@ class ExternalArtifact(AssayistStructuredNode):
     upstream and used during builds.
     """
 
-    checksum = StringProperty()
     identifier = StringProperty(unique_index=True)
     type = StringProperty(index=True)
 
@@ -75,3 +75,32 @@ class ExternalArtifact(AssayistStructuredNode):
     artifacts_in_buildroot_for = RelationshipFrom('Artifact', 'BUILT_WITH')
     # The artifacts this external artifact is embedded in
     artifacts_embedded_in = RelationshipFrom('Artifact', 'EMBEDS')
+    # The checksums associated with this external artifact
+    checksums = RelationshipFrom('Checksum', 'CHECKSUMS')
+
+
+class Checksum(AssayistStructuredNode):
+    """
+    The definition of a Checksum node.
+
+    Artifacts have one or more checksums related to their contents. They can vary by hashing
+    algorithm, or potentially by signed vs. unsigned status of the binary when the checksum was
+    calculated. Providing multiple checksums can also help deduplicate artifact references, and even
+    provide a bridge between events originating in different systems.
+    """
+
+    # https://neomodel.readthedocs.io/en/latest/properties.html#choices
+    CHECKSUM_SOURCES = {
+        'signed': 'signed',
+        'unsigned': 'unsigned'
+    }
+
+    algorithm = StringProperty(required=True)
+    checksum = StringProperty(required=True, index=True)
+    # A short description of what type of content was checksummed here (signed, unsigned, etc.)
+    checksum_source = StringProperty(choices=CHECKSUM_SOURCES)
+
+    # The artifacts this checksum is associated with
+    artifacts = RelationshipTo('Artifact', 'CHECKSUMS')
+    # The external artifacts this checksum is associated with
+    external_artifacts = RelationshipTo('ExternalArtifact', 'CHECKSUMS')
