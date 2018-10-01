@@ -22,7 +22,6 @@ class Build(AssayistStructuredNode):
     id_ = StringProperty(db_property='id', required=True, unique_index=True)
     type = StringProperty()
 
-    # TODO: Add the build_composition relationship after it's clearly defined
     # The artifacts that were produced by this build
     artifacts = RelationshipTo('Artifact', 'PRODUCED')
     # The source location used for this build
