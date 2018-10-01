@@ -81,7 +81,7 @@ IMAGE2 = {'id': '2',
           'extra': {'image': {'arch': 'ppc64le'}}}
 
 
-SOURCE_URL = "git://pkgs.devel.redhat.com/containers/virt-api#e9614e8eed02befd8ed021fe9591f8453422"
+SOURCE_URL = "git://example.com/containers/virt-api#e9614e8eed02befd8ed021fe9591f8453422"
 
 
 # Test the basic function of the get_or_create methods
@@ -131,7 +131,7 @@ def test_get_or_create_rpm_artifact():
 
     assert 'vim-0:2-3.el7' == artifact.filename
 
-    # "re-creating" should just return existing node
+    # 're-creating' should just return existing node
     artifact2 = analyzer.get_or_create_rpm_artifact(
         id=VIM_2_3['id'],
         name=VIM_2_3['name'],
@@ -143,10 +143,10 @@ def test_get_or_create_rpm_artifact():
     assert artifact.id == artifact2.id
 
 
-def test_get_or_create_rpm_artifact_from_hash():
-    """Test the basic function of the get_or_create_rpm_artifact_from_hash function."""
+def test_get_or_create_rpm_artifact_from_rpm_info():
+    """Test the basic function of the get_or_create_rpm_artifact_from_rpm_info function."""
     analyzer = main_analyzer.MainAnalyzer()
-    artifact = analyzer.get_or_create_rpm_artifact_from_hash(VIM_1_2_3)
+    artifact = analyzer.get_or_create_rpm_artifact_from_rpm_info(VIM_1_2_3)
 
     assert 'vim-1:2-3.el7' == artifact.filename
     assert VIM_1_2_3['payloadhash'] == artifact.checksum
@@ -155,11 +155,11 @@ def test_get_or_create_rpm_artifact_from_hash():
     artifact.id  # exists, hence is saved
 
     # assert that we correctly treat a null epoch as 0
-    artifact = analyzer.get_or_create_rpm_artifact_from_hash(VIM_2_3)
+    artifact = analyzer.get_or_create_rpm_artifact_from_rpm_info(VIM_2_3)
     assert 'vim-0:2-3.el7' == artifact.filename
 
-    # "re-creating" should just return existing node
-    artifact2 = analyzer.get_or_create_rpm_artifact_from_hash(VIM_2_3)
+    # 're-creating' should just return existing node
+    artifact2 = analyzer.get_or_create_rpm_artifact_from_rpm_info(VIM_2_3)
     assert artifact.id == artifact2.id
 
 
@@ -179,7 +179,7 @@ def test_get_or_create_archive_artifact():
     assert arch == artifact.architecture
     artifact.id  # exists, hence is saved
 
-    # "re-creating" should just return existing node
+    # 're-creating' should just return existing node
     artifact2 = analyzer.get_or_create_archive_artifact(
         archive_id=IMAGE1['id'],
         filename=IMAGE1['filename'],
@@ -201,7 +201,7 @@ def test_get_or_create_source_location():
     assert sl.canonical_version == sl.canonical_version
     sl.id  # exists, hence is saved
 
-    # "re-creating" should just return existing node
+    # 're-creating' should just return existing node
     sl2 = analyzer.get_or_create_source_location(
         url=url,
         canonical_version=canonical_version)
@@ -224,7 +224,7 @@ def test_get_or_create_component():
     assert component.canonical_type == type
     component.id  # exists, hence is saved
 
-    # "re-creating" should just return existing node
+    # 're-creating' should just return existing node
     component2 = analyzer.get_or_create_component(
         canonical_namespace=namespace,
         canonical_name=name,
@@ -239,7 +239,7 @@ def good_run(self):
 
 @mock.patch('assayist.processor.main_analyzer.MainAnalyzer.run', new=good_run)
 def test_main_good():
-    """Ensure that the main function normally runs and commites successfully."""
+    """Ensure that the main function normally runs and commits successfully."""
     analyzer = main_analyzer.MainAnalyzer()
     analyzer.main()
     # should have been successfully created
@@ -313,9 +313,9 @@ def read_metadata_test_data(self, FILE):
     if FILE == base.Analyzer.BUILD_FILE:
         return {'id': 759153,
                 'source': SOURCE_URL,
-                'name': "virt-api-container",
-                'version': "1.2",
-                'release': "4"}
+                'name': 'virt-api-container',
+                'version': '1.2',
+                'release': '4'}
     if FILE == base.Analyzer.TASK_FILE:
         return {'method': global_build_type}
     if FILE == base.Analyzer.RPM_FILE:
@@ -328,7 +328,7 @@ def read_metadata_test_data(self, FILE):
     if FILE == base.Analyzer.BUILDROOT_FILE:
         return {'1': [GCC_2_3_4],
                 '2': [PYTHON_3_6_7]}
-    raise Exception("Unexpected file being read, mock it out! %s", FILE)
+    raise Exception('Unexpected file being read, mock it out! %s', FILE)
 
 
 @mock.patch('assayist.processor.base.Analyzer.read_metadata_file', new=read_metadata_test_data)
@@ -373,7 +373,7 @@ def test_run():
     assert vim in build.artifacts
     assert ssh in build.artifacts
 
-    # assert that the buildroot rpms are lined to each artifact correctly
+    # assert that the buildroot rpms are linked to each artifact correctly
     assert len(vim.buildroot_artifacts) == 1
     assert 'gcc-2:3-4.el7' == vim.buildroot_artifacts[0].filename
     assert len(ssh.buildroot_artifacts) == 1

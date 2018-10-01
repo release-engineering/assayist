@@ -6,8 +6,9 @@ from assayist.processor.logging import log
 
 class MainAnalyzer(Analyzer):
     """
-    Look at the json brew output and write neomodels for the basic items identified.
+    Look at the json brew output and add basic information to the database.
 
+    This analyzer is responsible for adding the following:
      * The Component
      * The direct SourceLocation
      * The Build itself
@@ -20,25 +21,22 @@ class MainAnalyzer(Analyzer):
 
     def map_buildroot_to_artifact(self, buildroot_id, artifact_id):
         """Store the mapping in self.buildroot_to_artifact."""
-        if buildroot_id in self.buildroot_to_artifact:
-            self.buildroot_to_artifact[buildroot_id].append(artifact_id)
-        else:
-            self.buildroot_to_artifact[buildroot_id] = [artifact_id]
+        self.buildroot_to_artifact.set_default(buildroot_id, [])
+        self.buildroot_to_artifact[buildroot_id].append(artifact_id)
 
     def read_and_save_buildroots(self):
         """Save and link the rpms used in the buildroot for each artifact."""
         buildroots_info = self.read_metadata_file(self.BUILDROOT_FILE)
-        for buildroot_id in buildroots_info:
-            log.debug("Creating artifacts for buildroot %s", buildroot_id)
-            for rpm_info in buildroots_info[buildroot_id]:
-                rpm = self.get_or_create_rpm_artifact_from_hash(rpm_info)
-                if buildroot_id in self.buildroot_to_artifact:
-                    for artifact in self.buildroot_to_artifact[buildroot_id]:
-                        artifact.buildroot_artifacts.connect(rpm)
+        for buildroot_id, buildroot_info in buildroots_info.items():
+            log.debug('Creating artifacts for buildroot %s', buildroot_id)
+            for rpm_info in buildroot_info:
+                rpm = self.get_or_create_rpm_artifact_from_rpm_info(rpm_info)
+                for artifact in self.buildroot_to_artifact[buildroot_id]:
+                    artifact.buildroot_artifacts.connect(rpm)
 
     def construct_and_save_component(self, build_type, build_info):
         """
-        Read the build info and contruct the Component.
+        Read the build info and construct the Component.
 
         Returns: (Component, canonical_version)
 
@@ -95,7 +93,7 @@ class MainAnalyzer(Analyzer):
             rpms_info = self.read_metadata_file(self.RPM_FILE)
             for rpm_info in rpms_info:
                 buildroot_id = rpm_info['buildroot_id']
-                rpm = self.get_or_create_rpm_artifact_from_hash(rpm_info)
+                rpm = self.get_or_create_rpm_artifact_from_rpm_info(rpm_info)
                 rpm.build.connect(build)
                 self.map_buildroot_to_artifact(buildroot_id, rpm)
 
@@ -106,16 +104,13 @@ class MainAnalyzer(Analyzer):
         archives_info = self.read_metadata_file(self.ARCHIVE_FILE)
         images_rpm_info = self.read_metadata_file(self.IMAGE_RPM_FILE)
         for archive_info in archives_info:
-            log.debug("Creating build artifact %s", archive_info['id'])
+            log.debug('Creating build artifact %s', archive_info['id'])
             aid = archive_info['id']
             checksum = archive_info['checksum']
             filename = archive_info['filename']
             buildroot_id = archive_info['buildroot_id']
-            arch = 'noarch'
-            if 'extra' in archive_info \
-                    and 'image' in archive_info['extra'] \
-                    and 'arch' in archive_info['extra']['image']:
-                arch = archive_info['extra']['image']['arch']
+            # find the nested arch information or set noarch
+            arch = archive_info.get('extra', {}).get('image', {}).get('arch', 'noarch')
 
             archive = self.get_or_create_archive_artifact(
                 aid, filename, arch, checksum)
@@ -125,11 +120,11 @@ class MainAnalyzer(Analyzer):
             if aid in images_rpm_info:
                 # It's an image and we know it contains some rpms. Save them.
                 for rpm_info in images_rpm_info[aid]:
-                    rpm = self.get_or_create_rpm_artifact_from_hash(rpm_info)
+                    rpm = self.get_or_create_rpm_artifact_from_rpm_info(rpm_info)
                     archive.embedded_artifacts.connect(rpm)
 
         self.read_and_save_buildroots()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     MainAnalyzer.main()

@@ -2,8 +2,9 @@
 
 from abc import ABC, abstractmethod
 import json
-import neomodel
 import os
+
+import neomodel
 
 from assayist.common.models import content, source
 from assayist.processor.configuration import config
@@ -24,30 +25,29 @@ class Analyzer(ABC):
 
     def main(self):
         """Call this to run the analyzer."""
-        neomodel.config.DATABASE_URL = config.DATABASE_URL
-        neomodel.config.AUTO_INSTALL_LABELS = True
+        neomodel.db.set_connection(config.DATABASE_URL)
         # run the analyzer in a transaction
         neomodel.db.begin()
         try:
             self.run()
-            log.debug("Analyzer completed successfully, committing.")
+            log.debug('Analyzer completed successfully, committing.')
             neomodel.db.commit()
         except Exception as e:
-            log.exception("Error encountered executing Analyzer, rolling back transaction.")
+            log.exception('Error encountered executing Analyzer, rolling back transaction.')
             neomodel.db.rollback()
             raise
 
     @abstractmethod
     def run(self):
-        """Implement anlyzer code here in your subclass."""
+        """Implement analyzer code here in your subclass."""
 
-    def read_metadata_file(self, FILE):
+    def read_metadata_file(self, in_file):
         """Read and return the specified json metadata file or an empty dict."""
-        if os.path.isfile(FILE):
-            with open(FILE, 'r') as f:
+        if os.path.isfile(in_file):
+            with open(in_file, 'r') as f:
                 return json.load(f)
         else:
-            log.debug("File not found: %s, returning empty dict", FILE)
+            log.debug('File not found: %s, returning empty dict', in_file)
             return {}
 
     def get_or_create_build(self, build_id, build_type):
@@ -62,7 +62,7 @@ class Analyzer(ABC):
         """Fetch or create an Artifact for this rpm."""
         # treat empty epochs as zero for consistency
         epoch = epoch if epoch else '0'
-        nevr = f"{name}-{epoch}:{version}-{release}"
+        nevr = f'{name}-{epoch}:{version}-{release}'
         aid = f'rpm-{id}'
         artifact = content.Artifact.nodes.get_or_none(archive_id=aid)
         if artifact:
@@ -74,7 +74,7 @@ class Analyzer(ABC):
             checksum=checksum,
             filename=nevr).save()
 
-    def get_or_create_rpm_artifact_from_hash(self, rpm_info):
+    def get_or_create_rpm_artifact_from_rpm_info(self, rpm_info):
         """Fetch or create an Artifact from a dict of brew values."""
         return self.get_or_create_rpm_artifact(
             id=rpm_info['id'],
