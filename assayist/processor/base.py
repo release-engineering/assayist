@@ -52,34 +52,25 @@ class Analyzer(ABC):
 
     def get_or_create_build(self, build_id, build_type):
         """Get or create a build object."""
-        build = content.Build.nodes.get_or_none(id_=build_id)
-        if build:
-            return build
+        return content.Build.get_or_create({
+            'id_': build_id,
+            'type': build_type})[0]
 
-        return content.Build(id_=build_id, type=build_type).save()
-
-    def get_or_create_rpm_artifact(self, id, name, epoch, version, release, arch, checksum):
+    def get_or_create_rpm_artifact(self, id, name, version, release, arch, checksum):
         """Fetch or create an Artifact for this rpm."""
-        # treat empty epochs as zero for consistency
-        epoch = epoch if epoch else '0'
-        nevr = f'{name}-{epoch}:{version}-{release}'
-        aid = f'rpm-{id}'
-        artifact = content.Artifact.nodes.get_or_none(archive_id=aid)
-        if artifact:
-            return artifact
-
-        return content.Artifact(
-            architecture=arch,
-            archive_id=aid,
-            checksum=checksum,
-            filename=nevr).save()
+        filename = f'{name}-{version}-{release}.{arch}.rpm'
+        return content.Artifact.create_or_update({
+            'rpm_id': id,
+            'archive_id': '0',
+            'architecture': arch,
+            'checksum': checksum,
+            'filename': filename})[0]
 
     def get_or_create_rpm_artifact_from_rpm_info(self, rpm_info):
         """Fetch or create an Artifact from a dict of brew values."""
         return self.get_or_create_rpm_artifact(
             id=rpm_info['id'],
             name=rpm_info['name'],
-            epoch=rpm_info['epoch'],
             version=rpm_info['version'],
             release=rpm_info['release'],
             arch=rpm_info['arch'],
@@ -87,35 +78,23 @@ class Analyzer(ABC):
 
     def get_or_create_archive_artifact(self, archive_id, filename, arch, checksum):
         """Get or create an artifact for a brew archive."""
-        aid = f'archive-{archive_id}'
-        artifact = content.Artifact.nodes.get_or_none(archive_id=aid)
-        if artifact:
-            return artifact
-
-        return content.Artifact(
-            architecture=arch,
-            archive_id=aid,
-            checksum=checksum,
-            filename=filename).save()
+        return content.Artifact.create_or_update({
+            'archive_id': archive_id,
+            'rpm_id': '0',
+            'architecture': arch,
+            'checksum': checksum,
+            'filename': filename})[0]
 
     def get_or_create_source_location(self, url, canonical_version):
         """Get or create a SourceLocation."""
-        sl = source.SourceLocation.nodes.get_or_none(url=url)
-        if sl:
-            return sl
-        return source.SourceLocation(url=url, canonical_version=canonical_version).save()
+        sl = source.SourceLocation.get_or_create({'url': url})[0]
+        if canonical_version:
+            sl.canonical_version = canonical_version
+        return sl
 
     def get_or_create_component(self, canonical_namespace, canonical_name, canonical_type):
         """Get or create Component."""
-        component = source.Component.nodes.get_or_none(
-            canonical_namespace=canonical_namespace,
-            canonical_name=canonical_name,
-            canonical_type=canonical_type)
-
-        if component:
-            return component
-
-        return source.Component(
-            canonical_namespace=canonical_namespace,
-            canonical_name=canonical_name,
-            canonical_type=canonical_type).save()
+        return source.Component.get_or_create({
+            'canonical_namespace': canonical_namespace,
+            'canonical_name': canonical_name,
+            'canonical_type': canonical_type})[0]
