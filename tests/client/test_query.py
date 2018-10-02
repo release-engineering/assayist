@@ -13,7 +13,8 @@ def test_get_container_sources():
     container_filename = ('docker-image-sha256:98217b7c89052267e1ed02a41217c2e03577b96125e923e9594'
                           '1ac010f209ee6.x86_64.tar.gz')
     container_artifact = Artifact(
-        archive_id='742663', architecture='x86_64', filename=container_filename).save()
+        archive_id='742663', architecture='x86_64', filename=container_filename,
+        type='container').save()
     container_build.artifacts.connect(container_artifact)
     container_internal_url = ('git://pks.domain.local/containers/etcd#'
                               '3dcd6fc75e674589ac7d2294dbf79bd8ebd459fb')
@@ -23,7 +24,8 @@ def test_get_container_sources():
     # Create the embedded artifacts
     etcd_build = Build(id_='770188', type='rpm').save()
     etcd_rpm = Artifact(
-        archive_id='5818103', architecture='x86_64', filename='etcd-3.2.22-1.el7.x86_64.rpm').save()
+        archive_id='5818103', architecture='x86_64', filename='etcd-3.2.22-1.el7.x86_64.rpm',
+        type='rpm').save()
     etcd_build.artifacts.connect(etcd_rpm)
     etcd_upstream_url = ('https://github.com/coreos/etcd/archive/1674e682fe9fbecd66e9f20b77da852ad7'
                          'f517a9/etcd-1674e682.tar.gz')
@@ -36,7 +38,7 @@ def test_get_container_sources():
 
     yum_utils_build = Build(id_='728353', type='rpm').save()
     yum_utils_rpm = Artifact(
-        archive_id='5962202', architecture='x86_64',
+        archive_id='5962202', architecture='x86_64', type='rpm',
         filename='yum-utils-1.1.31-46.el7_5.noarch.rpm').save()
     yum_utils_build.artifacts.connect(yum_utils_rpm)
     yum_utils_upstream_url = 'http://yum.baseurl.org/download/yum-utils/yum-utils-1.1.31.tar.gz'
