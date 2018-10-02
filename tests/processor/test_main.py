@@ -244,15 +244,15 @@ def test_main_bad():
     assert not Build.nodes.get_or_none(id_='4321')  # should have been rolled back
 
 
-def test_construct_and_save_component():
-    """Test the basic functioning of the construct_and_save_component method."""
+def test__construct_and_save_component():
+    """Test the basic functioning of the _construct_and_save_component method."""
     analyzer = main_analyzer.MainAnalyzer()
     btype = 'build'  # rpm build
     binfo = {
         'name': 'kernel',
         'version': '123',
         'release': '4.el7'}
-    component, version = analyzer.construct_and_save_component(btype, binfo)
+    component, version = analyzer._construct_and_save_component(btype, binfo)
     assert version == '123-4.el7'
     assert component.canonical_namespace == 'redhat'
     assert component.canonical_name == 'kernel'
@@ -264,7 +264,7 @@ def test_construct_and_save_component():
         'name': 'com.redhat.fuse.eap-fuse-eap',
         'version': '6.3.0.redhat_356',
         'release': '1'}
-    component, version = analyzer.construct_and_save_component(btype, binfo)
+    component, version = analyzer._construct_and_save_component(btype, binfo)
     assert version == '6.3.0.redhat-356'
     assert component.canonical_namespace == 'com.redhat.fuse.eap'
     assert component.canonical_name == 'fuse-eap'
@@ -276,7 +276,7 @@ def test_construct_and_save_component():
         'name': 'virt-api-container',
         'version': '1.2',
         'release': '4'}
-    component, version = analyzer.construct_and_save_component(btype, binfo)
+    component, version = analyzer._construct_and_save_component(btype, binfo)
     assert version == '1.2-4'
     assert component.canonical_namespace == 'docker-image'
     assert component.canonical_name == 'virt-api-container'
@@ -284,12 +284,8 @@ def test_construct_and_save_component():
     component.id  # exists, hence is saved
 
 
-global_build_type = 'buildContainer'
-
-
 def read_metadata_test_data(self, FILE):
     """Mock out this function so we can use test data."""
-    global global_build_type
     if FILE == base.Analyzer.MESSAGE_FILE:
         return {'info': {'build_id': 759153}}
     if FILE == base.Analyzer.BUILD_FILE:
@@ -299,7 +295,7 @@ def read_metadata_test_data(self, FILE):
                 'version': '1.2',
                 'release': '4'}
     if FILE == base.Analyzer.TASK_FILE:
-        return {'method': global_build_type}
+        return {'method': 'buildContainer'}
     if FILE == base.Analyzer.RPM_FILE:
         return [VIM_1_2_3, SSH_9_8_7]
     if FILE == base.Analyzer.ARCHIVE_FILE:
@@ -314,15 +310,15 @@ def read_metadata_test_data(self, FILE):
 
 
 @mock.patch('assayist.processor.base.Analyzer.read_metadata_file', new=read_metadata_test_data)
-def test_read_and_save_buildroots():
+def test__read_and_save_buildroots():
     """
-    Test the basic function of the build_and_save_buildroots function.
+    Test the basic function of the _build_and_save_buildroots function.
 
     The links to other artifacts won't exist yet, but the buildroot artifacts themselves should
     exist.
     """
     analyzer = main_analyzer.MainAnalyzer()
-    analyzer.read_and_save_buildroots()
+    analyzer._read_and_save_buildroots()
 
     assert Artifact.nodes.get(filename='gcc-3-4.el7.x86_64.rpm')
     assert Artifact.nodes.get(filename='python-6-7.el7.x86_64.rpm')
@@ -336,10 +332,9 @@ def test_run():
     Ensure that the appropriate nodes and edges are created that we would expect from
     the read_metadata_test_data function.
     """
-    # TODO this would be better served as multiple tests if we could wipe the db
-    # between each test so that they are not order-dependant
-    global global_build_type
-    global_build_type = 'build'  # rpm build
+
+    # While this test reaches all aspects of the build analyzer it it somewhat unrealistic.
+    # In reality a single build will not construct both rpms and maven artifact and images.
     analyzer = main_analyzer.MainAnalyzer()
     analyzer.run()
     # For an RPM build we expect:
@@ -349,9 +344,13 @@ def test_run():
 
     # assert that the build artifacts are linked to the build correctly
     build = Build.nodes.get(id_='759153')
-    assert len(build.artifacts) == 2
+    assert len(build.artifacts) == 4
     vim = Artifact.nodes.get(filename='vim-2-3.el7.x86_64.rpm')
     ssh = Artifact.nodes.get(filename='ssh-8-7.el7.x86_64.rpm')
+    image1 = Artifact.nodes.get(filename=IMAGE1['filename'])
+    image2 = Artifact.nodes.get(filename=IMAGE2['filename'])
+    assert image1 in build.artifacts
+    assert image2 in build.artifacts
     assert vim in build.artifacts
     assert ssh in build.artifacts
 
@@ -360,6 +359,10 @@ def test_run():
     assert 'gcc-3-4.el7.x86_64.rpm' == vim.buildroot_artifacts[0].filename
     assert len(ssh.buildroot_artifacts) == 1
     assert 'python-6-7.el7.x86_64.rpm' == ssh.buildroot_artifacts[0].filename
+    assert len(image1.buildroot_artifacts) == 1
+    assert 'gcc-3-4.el7.x86_64.rpm' == image1.buildroot_artifacts[0].filename
+    assert len(image2.buildroot_artifacts) == 1
+    assert 'python-6-7.el7.x86_64.rpm' == image2.buildroot_artifacts[0].filename
 
     # assert the sourcelocation is linked to the build
     assert len(build.source_location) == 1
@@ -368,57 +371,12 @@ def test_run():
 
     # assert the component is linked to the build
     assert source.component[0].canonical_name == 'virt-api-container'
-    assert source.component[0].canonical_type == 'rpm'
+    assert source.component[0].canonical_type == 'image'
 
-    # cleanup
-    source.delete()
-    build.delete()
-
-    global_build_type = 'maven'
-    analyzer.run()
-    build = Build.nodes.get(id_='759153')
-    # Now in addition to the rpm stuff we expect:
-    # * The archive outputs to be linked
-    # * They should have buildroot rpms linked
-    # * A new Component to be created / linked
-
-    # assert the new artifacts are linked
-    assert len(build.artifacts) == 2
-    image1 = Artifact.nodes.get(filename=IMAGE1['filename'])
-    image2 = Artifact.nodes.get(filename=IMAGE2['filename'])
-    assert image1 in build.artifacts
-    assert image2 in build.artifacts
-
-    # assert the buildroots are there
-    assert len(image1.buildroot_artifacts) == 1
-    assert 'gcc-3-4.el7.x86_64.rpm' == image1.buildroot_artifacts[0].filename
-    assert len(image2.buildroot_artifacts) == 1
-    assert 'python-6-7.el7.x86_64.rpm' == image2.buildroot_artifacts[0].filename
-
-    # assert the component is there
-    source = SourceLocation.nodes.get(url=SOURCE_URL)
-    assert 'virt' in source.component[0].canonical_namespace
-
-    # cleanup
-    source.delete()
-    build.delete()
-
-    global_build_type = 'buildContainer'
-    analyzer.run()
-    build = Build.nodes.get(id_='759153')
-    # Now in addition to the rpm and maven stuff we expect:
-    # * The rpms inside of the image to be linked
-    # * A new Component to be created / linked
-
-    # assert the new artifacts are linked
-    assert len(build.artifacts) == 2
+    # assert the embedded artifacts are linked (rpms contained inside an image)
     image1 = Artifact.nodes.get(filename=IMAGE1['filename'])
     image2 = Artifact.nodes.get(filename=IMAGE2['filename'])
     assert len(image1.embedded_artifacts) == 1
     assert image1.embedded_artifacts[0].checksum == NETWORKMANAGER_5_6_7_X86['payloadhash']
     assert len(image2.embedded_artifacts) == 1
     assert image2.embedded_artifacts[0].checksum == NETWORKMANAGER_5_6_7_PPC['payloadhash']
-
-    # assert the new component is linked
-    source = SourceLocation.nodes.get(url=SOURCE_URL)
-    assert 'docker-image' in source.component[0].canonical_namespace
