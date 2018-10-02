@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0+
 
-from neomodel import StringProperty, RelationshipTo, RelationshipFrom, ZeroOrOne
+from neomodel import StringProperty, IntegerProperty, RelationshipTo, RelationshipFrom, ZeroOrOne
 
 from assayist.common.models.base import AssayistStructuredNode
 
@@ -37,7 +37,12 @@ class Artifact(AssayistStructuredNode):
     """
 
     architecture = StringProperty()
-    archive_id = StringProperty(required=True, unique_index=True)
+    # There will only be one of archive_id or rpm_id, the other will be None.
+    # Individually they are unique but you can't have multiple Nones in a neo4j unique index,
+    # and it doesn't support combined unique indexes.
+    # You also (sadly) can't store Nones or set a default on a requried field.
+    archive_id = StringProperty(required=True, index=True)
+    rpm_id = StringProperty(required=True, index=True)
     filename = StringProperty()
     # A one-word description of the type of file this describes (to aid in filtering)
     type_ = StringProperty(required=True, db_property='type')

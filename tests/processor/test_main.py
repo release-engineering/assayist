@@ -107,39 +107,25 @@ def test_get_or_create_rpm_artifact():
     artifact = analyzer.get_or_create_rpm_artifact(
         id=VIM_1_2_3['id'],
         name=VIM_1_2_3['name'],
-        epoch=VIM_1_2_3['epoch'],
         version=VIM_1_2_3['version'],
         release=VIM_1_2_3['release'],
         arch=VIM_1_2_3['arch'],
         checksum=VIM_1_2_3['payloadhash'])
 
-    assert 'vim-1:2-3.el7' == artifact.filename
+    assert 'vim-2-3.el7.x86_64.rpm' == artifact.filename
     assert VIM_1_2_3['payloadhash'] == artifact.checksum
-    assert 'rpm-1' == artifact.archive_id
+    assert VIM_1_2_3['id'] == artifact.rpm_id
     assert VIM_1_2_3['arch'] == artifact.architecture
     artifact.id  # exists, hence is saved
 
-    # assert that we correctly treat a null epoch as 0
-    artifact = analyzer.get_or_create_rpm_artifact(
-        id=VIM_2_3['id'],
-        name=VIM_2_3['name'],
-        epoch=VIM_2_3['epoch'],
-        version=VIM_2_3['version'],
-        release=VIM_2_3['release'],
-        arch=VIM_2_3['arch'],
-        checksum=VIM_2_3['payloadhash'])
-
-    assert 'vim-0:2-3.el7' == artifact.filename
-
     # 're-creating' should just return existing node
     artifact2 = analyzer.get_or_create_rpm_artifact(
-        id=VIM_2_3['id'],
-        name=VIM_2_3['name'],
-        epoch=VIM_2_3['epoch'],
-        version=VIM_2_3['version'],
-        release=VIM_2_3['release'],
-        arch=VIM_2_3['arch'],
-        checksum=VIM_2_3['payloadhash'])
+        id=VIM_1_2_3['id'],
+        name=VIM_1_2_3['name'],
+        version=VIM_1_2_3['version'],
+        release=VIM_1_2_3['release'],
+        arch=VIM_1_2_3['arch'],
+        checksum=VIM_1_2_3['payloadhash'])
     assert artifact.id == artifact2.id
 
 
@@ -148,18 +134,14 @@ def test_get_or_create_rpm_artifact_from_rpm_info():
     analyzer = main_analyzer.MainAnalyzer()
     artifact = analyzer.get_or_create_rpm_artifact_from_rpm_info(VIM_1_2_3)
 
-    assert 'vim-1:2-3.el7' == artifact.filename
+    assert 'vim-2-3.el7.x86_64.rpm' == artifact.filename
     assert VIM_1_2_3['payloadhash'] == artifact.checksum
-    assert 'rpm-1' == artifact.archive_id
+    assert VIM_1_2_3['id'] == artifact.rpm_id
     assert VIM_1_2_3['arch'] == artifact.architecture
     artifact.id  # exists, hence is saved
 
-    # assert that we correctly treat a null epoch as 0
-    artifact = analyzer.get_or_create_rpm_artifact_from_rpm_info(VIM_2_3)
-    assert 'vim-0:2-3.el7' == artifact.filename
-
     # 're-creating' should just return existing node
-    artifact2 = analyzer.get_or_create_rpm_artifact_from_rpm_info(VIM_2_3)
+    artifact2 = analyzer.get_or_create_rpm_artifact_from_rpm_info(VIM_1_2_3)
     assert artifact.id == artifact2.id
 
 
@@ -175,7 +157,7 @@ def test_get_or_create_archive_artifact():
 
     assert IMAGE1['filename'] == artifact.filename
     assert IMAGE1['checksum'] == artifact.checksum
-    assert 'archive-' + IMAGE1['id'] == artifact.archive_id
+    assert IMAGE1['id'] == artifact.archive_id
     assert arch == artifact.architecture
     artifact.id  # exists, hence is saved
 
@@ -342,8 +324,8 @@ def test_read_and_save_buildroots():
     analyzer = main_analyzer.MainAnalyzer()
     analyzer.read_and_save_buildroots()
 
-    assert Artifact.nodes.get(filename='gcc-2:3-4.el7')
-    assert Artifact.nodes.get(filename='python-3:6-7.el7')
+    assert Artifact.nodes.get(filename='gcc-3-4.el7.x86_64.rpm')
+    assert Artifact.nodes.get(filename='python-6-7.el7.x86_64.rpm')
 
 
 @mock.patch('assayist.processor.base.Analyzer.read_metadata_file', new=read_metadata_test_data)
@@ -368,16 +350,16 @@ def test_run():
     # assert that the build artifacts are linked to the build correctly
     build = Build.nodes.get(id_='759153')
     assert len(build.artifacts) == 2
-    vim = Artifact.nodes.get(filename='vim-1:2-3.el7')
-    ssh = Artifact.nodes.get(filename='ssh-9:8-7.el7')
+    vim = Artifact.nodes.get(filename='vim-2-3.el7.x86_64.rpm')
+    ssh = Artifact.nodes.get(filename='ssh-8-7.el7.x86_64.rpm')
     assert vim in build.artifacts
     assert ssh in build.artifacts
 
     # assert that the buildroot rpms are linked to each artifact correctly
     assert len(vim.buildroot_artifacts) == 1
-    assert 'gcc-2:3-4.el7' == vim.buildroot_artifacts[0].filename
+    assert 'gcc-3-4.el7.x86_64.rpm' == vim.buildroot_artifacts[0].filename
     assert len(ssh.buildroot_artifacts) == 1
-    assert 'python-3:6-7.el7' == ssh.buildroot_artifacts[0].filename
+    assert 'python-6-7.el7.x86_64.rpm' == ssh.buildroot_artifacts[0].filename
 
     # assert the sourcelocation is linked to the build
     assert len(build.source_location) == 1
@@ -409,9 +391,9 @@ def test_run():
 
     # assert the buildroots are there
     assert len(image1.buildroot_artifacts) == 1
-    assert 'gcc-2:3-4.el7' == image1.buildroot_artifacts[0].filename
+    assert 'gcc-3-4.el7.x86_64.rpm' == image1.buildroot_artifacts[0].filename
     assert len(image2.buildroot_artifacts) == 1
-    assert 'python-3:6-7.el7' == image2.buildroot_artifacts[0].filename
+    assert 'python-6-7.el7.x86_64.rpm' == image2.buildroot_artifacts[0].filename
 
     # assert the component is there
     source = SourceLocation.nodes.get(url=SOURCE_URL)
