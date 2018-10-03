@@ -4,7 +4,6 @@ import mock
 import pytest
 
 from assayist.processor import base, main_analyzer
-from assayist.common.models.source import SourceLocation
 from assayist.common.models.content import Artifact, Build
 
 # RPM INFO BLOBS
@@ -15,7 +14,7 @@ VIM_1_2_3 = {'buildroot_id': '1',
              'version': '2',
              'release': '3.el7',
              'arch': 'x86_64',
-             'payloadhash': '1234567890'}
+             'payloadhash': '89506da3abd1de6a00c8d1403b3259d7'}
 
 VIM_2_3 = {'buildroot_id': '1',
            'id': '2',
@@ -24,7 +23,7 @@ VIM_2_3 = {'buildroot_id': '1',
            'version': '2',
            'release': '3.el7',
            'arch': 'x86_64',
-           'payloadhash': '1234567890'}
+           'payloadhash': '89506da3abd1de6a00c8d1403b3259d8'}
 
 SSH_9_8_7 = {'buildroot_id': '2',
              'id': '3',
@@ -33,7 +32,7 @@ SSH_9_8_7 = {'buildroot_id': '2',
              'version': '8',
              'release': '7.el7',
              'arch': 'x86_64',
-             'payloadhash': '0987654321'}
+             'payloadhash': '89506da3abd1de6a00c8d1403b3259d9'}
 
 NETWORKMANAGER_5_6_7_X86 = {'id': '4',
                             'name': 'NetworkManager',
@@ -41,7 +40,7 @@ NETWORKMANAGER_5_6_7_X86 = {'id': '4',
                             'version': '6',
                             'release': '7.el7',
                             'arch': 'x86_64',
-                            'payloadhash': '112346754'}
+                            'payloadhash': '89506da3abd1de6a00c8d1403b3259e0'}
 
 NETWORKMANAGER_5_6_7_PPC = {'id': '5',
                             'name': 'NetworkManager',
@@ -49,7 +48,7 @@ NETWORKMANAGER_5_6_7_PPC = {'id': '5',
                             'version': '6',
                             'release': '7.el7',
                             'arch': 'ppc64le',
-                            'payloadhash': '752245171'}
+                            'payloadhash': '89506da3abd1de6a00c8d1403b3259e1'}
 
 GCC_2_3_4 = {'id': '6',
              'name': 'gcc',
@@ -57,7 +56,7 @@ GCC_2_3_4 = {'id': '6',
              'version': '3',
              'release': '4.el7',
              'arch': 'x86_64',
-             'payloadhash': '1234567890'}
+             'payloadhash': '89506da3abd1de6a00c8d1403b3259e2'}
 
 PYTHON_3_6_7 = {'id': '7',
                 'name': 'python',
@@ -65,20 +64,32 @@ PYTHON_3_6_7 = {'id': '7',
                 'version': '6',
                 'release': '7.el7',
                 'arch': 'x86_64',
-                'payloadhash': '1234567890'}
+                'payloadhash': '89506da3abd1de6a00c8d1403b3259e3'}
 
 # ARCHIVE BLOBS
 IMAGE1 = {'id': '1',
-          'checksum': '1234567890',
+          'checksum': '89506da3abd1de6a00c8d1403b3259e4',
           'filename': 'image1.tar.gz',
           'buildroot_id': '1',
+          'btype': 'image',
+          'type': 'tar',
           'extra': {'image': {'arch': 'x86_64'}}}
 
 IMAGE2 = {'id': '2',
-          'checksum': '0987654321',
+          'checksum': '89506da3abd1de6a00c8d1403b3259e5',
           'filename': 'image2.tar.gz',
           'buildroot_id': '2',
+          'btype': 'image',
+          'type': 'tar',
           'extra': {'image': {'arch': 'ppc64le'}}}
+
+JAR = {'id': '3',
+       'checksum': '89506da3abd1de6a00c8d1403b3259e6',
+       'filename': 'camel-jmx-starter-2.18.1.redhat-000032.jar',
+       'buildroot_id': None,
+       'btype': 'maven',
+       'type': 'jar',
+       'extra': None}
 
 
 SOURCE_URL = "git://example.com/containers/virt-api#e9614e8eed02befd8ed021fe9591f8453422"
@@ -113,9 +124,12 @@ def test_get_or_create_rpm_artifact():
         checksum=VIM_1_2_3['payloadhash'])
 
     assert 'vim-2-3.el7.x86_64.rpm' == artifact.filename
-    assert VIM_1_2_3['payloadhash'] == artifact.checksum
-    assert VIM_1_2_3['id'] == artifact.rpm_id
+    assert VIM_1_2_3['id'] == artifact.archive_id
     assert VIM_1_2_3['arch'] == artifact.architecture
+    assert 'rpm' == artifact.type
+    assert VIM_1_2_3['payloadhash'] == artifact.checksums[0].checksum
+    assert 'md5' == artifact.checksums[0].algorithm
+    assert 'unsigned' == artifact.checksums[0].checksum_source
     artifact.id  # exists, hence is saved
 
     # 're-creating' should just return existing node
@@ -135,9 +149,12 @@ def test_get_or_create_rpm_artifact_from_rpm_info():
     artifact = analyzer.get_or_create_rpm_artifact_from_rpm_info(VIM_1_2_3)
 
     assert 'vim-2-3.el7.x86_64.rpm' == artifact.filename
-    assert VIM_1_2_3['payloadhash'] == artifact.checksum
-    assert VIM_1_2_3['id'] == artifact.rpm_id
+    assert VIM_1_2_3['id'] == artifact.archive_id
     assert VIM_1_2_3['arch'] == artifact.architecture
+    assert 'rpm' == artifact.type
+    assert VIM_1_2_3['payloadhash'] == artifact.checksums[0].checksum
+    assert 'md5' == artifact.checksums[0].algorithm
+    assert 'unsigned' == artifact.checksums[0].checksum_source
     artifact.id  # exists, hence is saved
 
     # 're-creating' should just return existing node
@@ -145,20 +162,24 @@ def test_get_or_create_rpm_artifact_from_rpm_info():
     assert artifact.id == artifact2.id
 
 
-def test_get_or_create_archive_artifact():
-    """Test the basic function of the get_or_create_archive_artifact function."""
+def test_get_or_create_container_archive_artifact():
+    """Test the basic function of the get_or_create_archive_artifact function with a container."""
     analyzer = main_analyzer.MainAnalyzer()
     arch = 'x86_64'
     artifact = analyzer.get_or_create_archive_artifact(
         archive_id=IMAGE1['id'],
         filename=IMAGE1['filename'],
         arch=arch,
+        type=IMAGE1['btype'],
         checksum=IMAGE1['checksum'])
 
     assert IMAGE1['filename'] == artifact.filename
-    assert IMAGE1['checksum'] == artifact.checksum
     assert IMAGE1['id'] == artifact.archive_id
     assert arch == artifact.architecture
+    assert 'container' == artifact.type
+    assert IMAGE1['checksum'] == artifact.checksums[0].checksum
+    assert 'md5' == artifact.checksums[0].algorithm
+    assert 'unsigned' == artifact.checksums[0].checksum_source
     artifact.id  # exists, hence is saved
 
     # 're-creating' should just return existing node
@@ -166,7 +187,38 @@ def test_get_or_create_archive_artifact():
         archive_id=IMAGE1['id'],
         filename=IMAGE1['filename'],
         arch=arch,
+        type=IMAGE1['btype'],
         checksum=IMAGE1['checksum'])
+    assert artifact.id == artifact2.id
+
+
+def test_get_or_create_maven_archive_artifact():
+    """Test the basic function of the get_or_create_archive_artifact with a maven artifact."""
+    analyzer = main_analyzer.MainAnalyzer()
+    arch = 'x86_64'
+    artifact = analyzer.get_or_create_archive_artifact(
+        archive_id=JAR['id'],
+        filename=JAR['filename'],
+        arch=arch,
+        type=JAR['btype'],
+        checksum=JAR['checksum'])
+
+    assert JAR['filename'] == artifact.filename
+    assert JAR['id'] == artifact.archive_id
+    assert arch == artifact.architecture
+    assert 'maven' == artifact.type
+    assert JAR['checksum'] == artifact.checksums[0].checksum
+    assert 'md5' == artifact.checksums[0].algorithm
+    assert 'unsigned' == artifact.checksums[0].checksum_source
+    artifact.id  # exists, hence is saved
+
+    # 're-creating' should just return existing node
+    artifact2 = analyzer.get_or_create_archive_artifact(
+        archive_id=JAR['id'],
+        filename=JAR['filename'],
+        arch=arch,
+        type=JAR['btype'],
+        checksum=JAR['checksum'])
     assert artifact.id == artifact2.id
 
 
@@ -299,7 +351,7 @@ def read_metadata_test_data(self, FILE):
     if FILE == base.Analyzer.RPM_FILE:
         return [VIM_1_2_3, SSH_9_8_7]
     if FILE == base.Analyzer.ARCHIVE_FILE:
-        return [IMAGE1, IMAGE2]
+        return [IMAGE1, IMAGE2, JAR]
     if FILE == base.Analyzer.IMAGE_RPM_FILE:
         return {'1': [NETWORKMANAGER_5_6_7_X86],
                 '2': [NETWORKMANAGER_5_6_7_PPC]}
@@ -332,7 +384,6 @@ def test_run():
     Ensure that the appropriate nodes and edges are created that we would expect from
     the read_metadata_test_data function.
     """
-
     # While this test reaches all aspects of the build analyzer it it somewhat unrealistic.
     # In reality a single build will not construct both rpms and maven artifact and images.
     analyzer = main_analyzer.MainAnalyzer()
@@ -344,15 +395,17 @@ def test_run():
 
     # assert that the build artifacts are linked to the build correctly
     build = Build.nodes.get(id_='759153')
-    assert len(build.artifacts) == 4
+    assert len(build.artifacts) == 5
     vim = Artifact.nodes.get(filename='vim-2-3.el7.x86_64.rpm')
     ssh = Artifact.nodes.get(filename='ssh-8-7.el7.x86_64.rpm')
     image1 = Artifact.nodes.get(filename=IMAGE1['filename'])
     image2 = Artifact.nodes.get(filename=IMAGE2['filename'])
+    jar = Artifact.nodes.get(filename=JAR['filename'])
     assert image1 in build.artifacts
     assert image2 in build.artifacts
     assert vim in build.artifacts
     assert ssh in build.artifacts
+    assert jar in build.artifacts
 
     # assert that the buildroot rpms are linked to each artifact correctly
     assert len(vim.buildroot_artifacts) == 1
@@ -363,6 +416,7 @@ def test_run():
     assert 'gcc-3-4.el7.x86_64.rpm' == image1.buildroot_artifacts[0].filename
     assert len(image2.buildroot_artifacts) == 1
     assert 'python-6-7.el7.x86_64.rpm' == image2.buildroot_artifacts[0].filename
+    assert len(jar.buildroot_artifacts) == 0
 
     # assert the sourcelocation is linked to the build
     assert len(build.source_location) == 1
@@ -377,6 +431,11 @@ def test_run():
     image1 = Artifact.nodes.get(filename=IMAGE1['filename'])
     image2 = Artifact.nodes.get(filename=IMAGE2['filename'])
     assert len(image1.embedded_artifacts) == 1
-    assert image1.embedded_artifacts[0].checksum == NETWORKMANAGER_5_6_7_X86['payloadhash']
+    assert image1.embedded_artifacts[0].checksums[0].checksum == NETWORKMANAGER_5_6_7_X86[
+        'payloadhash']
     assert len(image2.embedded_artifacts) == 1
-    assert image2.embedded_artifacts[0].checksum == NETWORKMANAGER_5_6_7_PPC['payloadhash']
+    assert image2.embedded_artifacts[0].checksums[0].checksum == NETWORKMANAGER_5_6_7_PPC[
+        'payloadhash']
+    assert len(vim.embedded_artifacts) == 0
+    assert len(ssh.embedded_artifacts) == 0
+    assert len(jar.embedded_artifacts) == 0

@@ -84,12 +84,24 @@ class Analyzer(ABC):
         :rtype: assayist.common.models.content.Artifact
         """
         filename = f'{name}-{version}-{release}.{arch}.rpm'
-        return content.Artifact.create_or_update({
-            'rpm_id': id,
-            'archive_id': '0',
+        if arch == 'src':
+            type = content.Artifact.TYPES['srpm']
+        else:
+            type = content.Artifact.TYPES['rpm']
+        artifact = content.Artifact.create_or_update({
+            'archive_id': id,
+            'type': type,
             'architecture': arch,
             'checksum': checksum,
             'filename': filename})[0]
+
+        checksum_node = content.Checksum.create_or_update({
+            'checksum': checksum,
+            'algorithm': content.Checksum.guess_type(checksum),
+            'checksum_source': content.Checksum.CHECKSUM_SOURCES['unsigned']})[0]
+
+        artifact.checksums.connect(checksum_node)
+        return artifact
 
     def get_or_create_rpm_artifact_from_rpm_info(self, rpm_info):
         """
@@ -108,23 +120,38 @@ class Analyzer(ABC):
             arch=rpm_info['arch'],
             checksum=rpm_info['payloadhash'])
 
-    def get_or_create_archive_artifact(self, archive_id, filename, arch, checksum):
+    def get_or_create_archive_artifact(self, archive_id, filename, arch, type, checksum):
         """
         Create or update an Artifact for this archive.
 
         :param str archive_id: the archives's id
         :param str filename: the archive's filename, eg 'maven.jar'
         :param str arch: the archive's architecture, eg 'x86_64' or None
+        :param str type: the archive's type, eg 'maven'
         :param str checksum: the archive's checksum, eg 'deadbeef1234'
         :return: an Artifact object
         :rtype: assayist.common.models.content.Artifact
         """
-        return content.Artifact.create_or_update({
+        if type == 'image':
+            type = content.Artifact.TYPES['container']
+        elif type == 'maven':
+            type = content.Artifact.TYPES['maven']
+        else:
+            type = content.Artifact.TYPES['other']
+
+        artifact = content.Artifact.create_or_update({
             'archive_id': archive_id,
-            'rpm_id': '0',
+            'type': type,
             'architecture': arch,
-            'checksum': checksum,
             'filename': filename})[0]
+
+        checksum_node = content.Checksum.create_or_update({
+            'checksum': checksum,
+            'algorithm': content.Checksum.guess_type(checksum),
+            'checksum_source': content.Checksum.CHECKSUM_SOURCES['unsigned']})[0]
+
+        artifact.checksums.connect(checksum_node)
+        return artifact
 
     def get_or_create_source_location(self, url, canonical_version):
         """
@@ -143,7 +170,7 @@ class Analyzer(ABC):
 
     def get_or_create_component(self, canonical_namespace, canonical_name, canonical_type):
         """
-        Create or update Componenet
+        Create or update Componenet.
 
         :param str canonical_namespace: the namespace of the componenet, eg. 'com.redhat'
         :param str canonical_name: the name of the componenet, eg. 'maven'

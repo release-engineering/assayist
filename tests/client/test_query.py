@@ -14,7 +14,6 @@ def test_get_container_sources():
                           '1ac010f209ee6.x86_64.tar.gz')
     container_artifact = Artifact(
         archive_id='742663',
-        rpm_id='0',
         architecture='x86_64',
         filename=container_filename,
         type_='container').save()
@@ -27,8 +26,7 @@ def test_get_container_sources():
     # Create the embedded artifacts
     etcd_build = Build(id_='770188', type_='rpm').save()
     etcd_rpm = Artifact(
-        archive_id='0',
-        rpm_id='5818103',
+        archive_id='5818103',
         architecture='x86_64',
         filename='etcd-3.2.22-1.el7.x86_64.rpm',
         type_='rpm').save()
@@ -44,8 +42,7 @@ def test_get_container_sources():
 
     yum_utils_build = Build(id_='728353', type_='rpm').save()
     yum_utils_rpm = Artifact(
-        archive_id='0',
-        rpm_id='5962202',
+        archive_id='5962202',
         architecture='x86_64',
         type_='rpm',
         filename='yum-utils-1.1.31-46.el7_5.noarch.rpm').save()

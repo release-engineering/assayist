@@ -109,16 +109,25 @@ class MainAnalyzer(Analyzer):
         archives_info = self.read_metadata_file(self.ARCHIVE_FILE)
         images_rpm_info = self.read_metadata_file(self.IMAGE_RPM_FILE)
         for archive_info in archives_info:
+            if archive_info['type'] == 'log':
+                # No one cares about logs
+                continue
+
             log.debug('Creating build artifact %s', archive_info['id'])
             aid = archive_info['id']
+            type = archive_info['btype']
             checksum = archive_info['checksum']
             filename = archive_info['filename']
             buildroot_id = archive_info['buildroot_id']
             # find the nested arch information or set noarch
-            arch = archive_info.get('extra', {}).get('image', {}).get('arch', 'noarch')
+            extra = archive_info.get('extra', {})
+            if extra:
+                arch = extra.get('image', {}).get('arch', 'noarch')
+            else:
+                arch = 'noarch'
 
             archive = self.get_or_create_archive_artifact(
-                aid, filename, arch, checksum)
+                aid, filename, arch, type, checksum)
             archive.build.connect(build)
             self.__map_buildroot_to_artifact(buildroot_id, archive)
 

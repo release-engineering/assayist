@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0+
 
-from neomodel import StringProperty, IntegerProperty, RelationshipTo, RelationshipFrom, ZeroOrOne
+from neomodel import StringProperty, RelationshipTo, RelationshipFrom, ZeroOrOne
 
 from assayist.common.models.base import AssayistStructuredNode
 
@@ -36,16 +36,22 @@ class Artifact(AssayistStructuredNode):
     builds, this is where the incorporation will take place.
     """
 
+    TYPES = {
+        'rpm': 'rpm',
+        'srpm': 'srpm',
+        'container': 'container',
+        'maven': 'maven',
+        'other': 'other',
+        # I'm sure we will have more types, feel free to add as needed.
+    }
+
     architecture = StringProperty()
-    # There will only be one of archive_id or rpm_id, the other will be None.
-    # Individually they are unique but you can't have multiple Nones in a neo4j unique index,
-    # and it doesn't support combined unique indexes.
-    # You also (sadly) can't store Nones or set a default on a requried field.
+    # Not unique because rpm and archive ids can overlap. Combination of archive_id and type
+    # should be unique, but neo4j doesn't do compound unique indexes.
     archive_id = StringProperty(required=True, index=True)
-    rpm_id = StringProperty(required=True, index=True)
     filename = StringProperty()
     # A one-word description of the type of file this describes (to aid in filtering)
-    type_ = StringProperty(required=True, db_property='type')
+    type_ = StringProperty(required=True, db_property='type', choices=TYPES)
 
     # The artifacts this artifact is embedded in
     artifacts_embedded_in = RelationshipFrom('Artifact', 'EMBEDS')
@@ -113,6 +119,26 @@ class Checksum(AssayistStructuredNode):
     artifacts = RelationshipTo('Artifact', 'CHECKSUMS')
     # The external artifacts this checksum is associated with
     external_artifacts = RelationshipTo('ExternalArtifact', 'CHECKSUMS')
+
+    @staticmethod
+    def guess_type(checksum):
+        """
+        Guess the checksum type from its length.
+
+        :param str checksum: The checksum in question
+        :return: The probable type of the Checksum
+        :rtype: str
+        """
+        x = len(checksum)
+        if x == 32:
+            return 'md5'
+        if x == 40:
+            return 'sha1'
+        if x == 64:
+            return 'sha256'
+        if x == 128:
+            return 'sha512'
+        return 'unknown'
 
 
 class UnknownFile(AssayistStructuredNode):
