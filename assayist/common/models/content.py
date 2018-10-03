@@ -20,7 +20,7 @@ class Build(AssayistStructuredNode):
     # Call it "id_" to not overshadow the Neo4j internal ID used by neomodel, but call
     # it "id" in Neo4j
     id_ = StringProperty(db_property='id', required=True, unique_index=True)
-    type = StringProperty()
+    type_ = StringProperty()
 
     # The artifacts that were produced by this build
     artifacts = RelationshipTo('Artifact', 'PRODUCED')
@@ -40,7 +40,7 @@ class Artifact(AssayistStructuredNode):
     archive_id = StringProperty(required=True, unique_index=True)
     filename = StringProperty()
     # A one-word description of the type of file this describes (to aid in filtering)
-    type = StringProperty(required=True)
+    type_ = StringProperty(required=True)
 
     # The artifacts this artifact is embedded in
     artifacts_embedded_in = RelationshipFrom('Artifact', 'EMBEDS')
@@ -71,7 +71,7 @@ class ExternalArtifact(AssayistStructuredNode):
     """
 
     identifier = StringProperty(unique_index=True)
-    type = StringProperty(index=True)
+    type_ = StringProperty(index=True)
 
     # The artifacts that used this external artifact in their buildroot
     artifacts_in_buildroot_for = RelationshipFrom('Artifact', 'BUILT_WITH')
