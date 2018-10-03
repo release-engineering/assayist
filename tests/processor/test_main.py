@@ -101,7 +101,7 @@ def test_get_or_create_build():
     analyzer = main_analyzer.MainAnalyzer()
     build = analyzer.get_or_create_build('1', 'type1')
     assert build.id_ == '1'
-    assert build.type == 'type1'
+    assert build.type_ == 'type1'
     build.id  # exists, meaning it's been saved
 
     build2 = analyzer.get_or_create_build('1', 'type2')
@@ -126,7 +126,7 @@ def test_get_or_create_rpm_artifact():
     assert 'vim-2-3.el7.x86_64.rpm' == artifact.filename
     assert VIM_1_2_3['id'] == artifact.archive_id
     assert VIM_1_2_3['arch'] == artifact.architecture
-    assert 'rpm' == artifact.type
+    assert 'rpm' == artifact.type_
     assert VIM_1_2_3['payloadhash'] == artifact.checksums[0].checksum
     assert 'md5' == artifact.checksums[0].algorithm
     assert 'unsigned' == artifact.checksums[0].checksum_source
@@ -151,7 +151,7 @@ def test_get_or_create_rpm_artifact_from_rpm_info():
     assert 'vim-2-3.el7.x86_64.rpm' == artifact.filename
     assert VIM_1_2_3['id'] == artifact.archive_id
     assert VIM_1_2_3['arch'] == artifact.architecture
-    assert 'rpm' == artifact.type
+    assert 'rpm' == artifact.type_
     assert VIM_1_2_3['payloadhash'] == artifact.checksums[0].checksum
     assert 'md5' == artifact.checksums[0].algorithm
     assert 'unsigned' == artifact.checksums[0].checksum_source
@@ -176,7 +176,7 @@ def test_get_or_create_container_archive_artifact():
     assert IMAGE1['filename'] == artifact.filename
     assert IMAGE1['id'] == artifact.archive_id
     assert arch == artifact.architecture
-    assert 'container' == artifact.type
+    assert 'container' == artifact.type_
     assert IMAGE1['checksum'] == artifact.checksums[0].checksum
     assert 'md5' == artifact.checksums[0].algorithm
     assert 'unsigned' == artifact.checksums[0].checksum_source
@@ -206,7 +206,7 @@ def test_get_or_create_maven_archive_artifact():
     assert JAR['filename'] == artifact.filename
     assert JAR['id'] == artifact.archive_id
     assert arch == artifact.architecture
-    assert 'maven' == artifact.type
+    assert 'maven' == artifact.type_
     assert JAR['checksum'] == artifact.checksums[0].checksum
     assert 'md5' == artifact.checksums[0].algorithm
     assert 'unsigned' == artifact.checksums[0].checksum_source

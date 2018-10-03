@@ -68,7 +68,7 @@ class Analyzer(ABC):
         """
         return content.Build.get_or_create({
             'id_': build_id,
-            'type': build_type})[0]
+            'type_': build_type})[0]
 
     def get_or_create_rpm_artifact(self, id, name, version, release, arch, checksum):
         """
@@ -90,7 +90,7 @@ class Analyzer(ABC):
             type = content.Artifact.TYPES['rpm']
         artifact = content.Artifact.create_or_update({
             'archive_id': id,
-            'type': type,
+            'type_': type,
             'architecture': arch,
             'checksum': checksum,
             'filename': filename})[0]
@@ -141,7 +141,7 @@ class Analyzer(ABC):
 
         artifact = content.Artifact.create_or_update({
             'archive_id': archive_id,
-            'type': type,
+            'type_': type,
             'architecture': arch,
             'filename': filename})[0]
 
