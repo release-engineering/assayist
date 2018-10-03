@@ -60,6 +60,8 @@ class Artifact(AssayistStructuredNode):
     embedded_external_artifacts = RelationshipTo('ExternalArtifact', 'EMBEDS')
     # The source locations that embedded in this artifact
     embedded_source_locations = RelationshipTo('.source.SourceLocation', 'EMBEDS')
+    # The unknown/unclaimed files embedded in this artifact
+    unknown_files = RelationshipTo('UnknownFile', 'EMBEDS')
 
 
 class ExternalArtifact(AssayistStructuredNode):
@@ -106,3 +108,21 @@ class Checksum(AssayistStructuredNode):
     artifacts = RelationshipTo('Artifact', 'CHECKSUMS')
     # The external artifacts this checksum is associated with
     external_artifacts = RelationshipTo('ExternalArtifact', 'CHECKSUMS')
+
+
+class UnknownFile(AssayistStructuredNode):
+    """
+    The definition of an UnknownFile node.
+
+    Any unclaimed files by analyzers will get UnknownFile nodes created with edges to the artifact
+    it's a part of.
+    """
+
+    # SHA256 checksum of the file
+    checksum = StringProperty(required=True, index=True)
+    filename = StringProperty(required=True, index=True)
+    # The path to the directory the file is located in
+    path = StringProperty(required=True, index=True)
+
+    # The artifacts this unknown file is embedded in
+    artifacts = RelationshipFrom('Artifact', 'EMBEDS')
