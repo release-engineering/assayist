@@ -95,28 +95,11 @@ JAR = {'id': '3',
 SOURCE_URL = "git://example.com/containers/virt-api#e9614e8eed02befd8ed021fe9591f8453422"
 
 
-# Test the basic function of the get_or_create methods
-def test_get_or_create_build():
-    """Test the basic function of get_or_create_build."""
+def test_create_or_update_rpm_artifact():
+    """Test the basic function of the create_or_update_rpm_artifact function."""
     analyzer = main_analyzer.MainAnalyzer()
-    build = analyzer.get_or_create_build('1', 'type1')
-    assert build.id_ == '1'
-    assert build.type_ == 'type1'
-    build.id  # exists, meaning it's been saved
-
-    build2 = analyzer.get_or_create_build('1', 'type2')
-    # this should be the same object as from the first call since id_ is the unique key
-    assert build.id == build2.id
-
-    # should be the same object if we query for it too
-    assert Build.nodes.get_or_none(id_='1').id == build.id
-
-
-def test_get_or_create_rpm_artifact():
-    """Test the basic function of the get_or_create_rpm_artifact function."""
-    analyzer = main_analyzer.MainAnalyzer()
-    artifact = analyzer.get_or_create_rpm_artifact(
-        id=VIM_1_2_3['id'],
+    artifact = analyzer.create_or_update_rpm_artifact(
+        rpm_id=VIM_1_2_3['id'],
         name=VIM_1_2_3['name'],
         version=VIM_1_2_3['version'],
         release=VIM_1_2_3['release'],
@@ -133,8 +116,8 @@ def test_get_or_create_rpm_artifact():
     artifact.id  # exists, hence is saved
 
     # 're-creating' should just return existing node
-    artifact2 = analyzer.get_or_create_rpm_artifact(
-        id=VIM_1_2_3['id'],
+    artifact2 = analyzer.create_or_update_rpm_artifact(
+        rpm_id=VIM_1_2_3['id'],
         name=VIM_1_2_3['name'],
         version=VIM_1_2_3['version'],
         release=VIM_1_2_3['release'],
@@ -143,10 +126,10 @@ def test_get_or_create_rpm_artifact():
     assert artifact.id == artifact2.id
 
 
-def test_get_or_create_rpm_artifact_from_rpm_info():
-    """Test the basic function of the get_or_create_rpm_artifact_from_rpm_info function."""
+def test_create_or_update_rpm_artifact_from_rpm_info():
+    """Test the basic function of the create_or_update_rpm_artifact_from_rpm_info function."""
     analyzer = main_analyzer.MainAnalyzer()
-    artifact = analyzer.get_or_create_rpm_artifact_from_rpm_info(VIM_1_2_3)
+    artifact = analyzer.create_or_update_rpm_artifact_from_rpm_info(VIM_1_2_3)
 
     assert 'vim-2-3.el7.x86_64.rpm' == artifact.filename
     assert VIM_1_2_3['id'] == artifact.archive_id
@@ -158,19 +141,19 @@ def test_get_or_create_rpm_artifact_from_rpm_info():
     artifact.id  # exists, hence is saved
 
     # 're-creating' should just return existing node
-    artifact2 = analyzer.get_or_create_rpm_artifact_from_rpm_info(VIM_1_2_3)
+    artifact2 = analyzer.create_or_update_rpm_artifact_from_rpm_info(VIM_1_2_3)
     assert artifact.id == artifact2.id
 
 
-def test_get_or_create_container_archive_artifact():
-    """Test the basic function of the get_or_create_archive_artifact function with a container."""
+def test_create_or_update_container_archive_artifact():
+    """Test the basic function of the create_or_update_archive_artifact function for a container."""
     analyzer = main_analyzer.MainAnalyzer()
     arch = 'x86_64'
-    artifact = analyzer.get_or_create_archive_artifact(
+    artifact = analyzer.create_or_update_archive_artifact(
         archive_id=IMAGE1['id'],
         filename=IMAGE1['filename'],
         arch=arch,
-        type=IMAGE1['btype'],
+        archive_type=IMAGE1['btype'],
         checksum=IMAGE1['checksum'])
 
     assert IMAGE1['filename'] == artifact.filename
@@ -183,24 +166,24 @@ def test_get_or_create_container_archive_artifact():
     artifact.id  # exists, hence is saved
 
     # 're-creating' should just return existing node
-    artifact2 = analyzer.get_or_create_archive_artifact(
+    artifact2 = analyzer.create_or_update_archive_artifact(
         archive_id=IMAGE1['id'],
         filename=IMAGE1['filename'],
         arch=arch,
-        type=IMAGE1['btype'],
+        archive_type=IMAGE1['btype'],
         checksum=IMAGE1['checksum'])
     assert artifact.id == artifact2.id
 
 
-def test_get_or_create_maven_archive_artifact():
-    """Test the basic function of the get_or_create_archive_artifact with a maven artifact."""
+def test_create_or_update_maven_archive_artifact():
+    """Test the basic function of the create_or_update_archive_artifact with a maven artifact."""
     analyzer = main_analyzer.MainAnalyzer()
     arch = 'x86_64'
-    artifact = analyzer.get_or_create_archive_artifact(
+    artifact = analyzer.create_or_update_archive_artifact(
         archive_id=JAR['id'],
         filename=JAR['filename'],
         arch=arch,
-        type=JAR['btype'],
+        archive_type=JAR['btype'],
         checksum=JAR['checksum'])
 
     assert JAR['filename'] == artifact.filename
@@ -213,21 +196,21 @@ def test_get_or_create_maven_archive_artifact():
     artifact.id  # exists, hence is saved
 
     # 're-creating' should just return existing node
-    artifact2 = analyzer.get_or_create_archive_artifact(
+    artifact2 = analyzer.create_or_update_archive_artifact(
         archive_id=JAR['id'],
         filename=JAR['filename'],
         arch=arch,
-        type=JAR['btype'],
+        archive_type=JAR['btype'],
         checksum=JAR['checksum'])
     assert artifact.id == artifact2.id
 
 
-def test_get_or_create_source_location():
-    """Test the basic function of the get_or_create_source_location function."""
+def test_create_or_update_source_location():
+    """Test the basic function of the create_or_update_source_location function."""
     analyzer = main_analyzer.MainAnalyzer()
     url = 'www.whatever.com'
     canonical_version = 'pi'
-    sl = analyzer.get_or_create_source_location(
+    sl = analyzer.create_or_update_source_location(
         url=url,
         canonical_version=canonical_version)
 
@@ -236,39 +219,17 @@ def test_get_or_create_source_location():
     sl.id  # exists, hence is saved
 
     # 're-creating' should just return existing node
-    sl2 = analyzer.get_or_create_source_location(
+    sl2 = analyzer.create_or_update_source_location(
         url=url,
         canonical_version=canonical_version)
     assert sl.id == sl2.id
 
 
-def test_get_or_create_component():
-    """Test the basic function of the get_or_create_component function."""
-    analyzer = main_analyzer.MainAnalyzer()
-    namespace = 'Pizza Hut'
-    name = 'Pepperoni'
-    type = 'pizza'
-    component = analyzer.get_or_create_component(
-        canonical_namespace=namespace,
-        canonical_name=name,
-        canonical_type=type)
-
-    assert component.canonical_namespace == namespace
-    assert component.canonical_name == name
-    assert component.canonical_type == type
-    component.id  # exists, hence is saved
-
-    # 're-creating' should just return existing node
-    component2 = analyzer.get_or_create_component(
-        canonical_namespace=namespace,
-        canonical_name=name,
-        canonical_type=type)
-    assert component.id == component2.id
-
-
 def good_run(self):
     """Mock a simple run and succeed."""
-    self.get_or_create_build('1234', '1')
+    Build.get_or_create({
+        'id_': '1234',
+        'type_': '1'})
 
 
 @mock.patch('assayist.processor.main_analyzer.MainAnalyzer.run', new=good_run)
@@ -282,7 +243,9 @@ def test_main_good():
 
 def bad_run(self):
     """Mock a simple run and throw an exception."""
-    self.get_or_create_build('4321', '2')
+    Build.get_or_create({
+        'id_': '4321',
+        'type_': '1'})
     raise ValueError()
 
 
@@ -330,7 +293,7 @@ def test__construct_and_save_component():
         'release': '4'}
     component, version = analyzer._construct_and_save_component(btype, binfo)
     assert version == '1.2-4'
-    assert component.canonical_namespace == 'docker-image'
+    assert component.canonical_namespace == 'container'
     assert component.canonical_name == 'virt-api-container'
     assert component.canonical_type == 'image'
     component.id  # exists, hence is saved

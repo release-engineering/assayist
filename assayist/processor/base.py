@@ -57,24 +57,26 @@ class Analyzer(ABC):
             log.debug('File not found: %s, returning empty dict', in_file)
             return {}
 
-    def get_or_create_build(self, build_id, build_type):
-        """
-        Get or create a build object.
+    def __create_or_update_artifact(self, archive_id, archive_type, arch, filename, checksum):
+        artifact = content.Artifact.create_or_update({
+            'archive_id': archive_id,
+            'type_': archive_type,
+            'architecture': arch,
+            'filename': filename})[0]
 
-        :param str build_id: the id of the build
-        :param str build_type: the type of the build (eg. "build", "maven", "buildContainer")
-        :return: a Build object
-        :rtype: assayist.common.models.content.Build
-        """
-        return content.Build.get_or_create({
-            'id_': build_id,
-            'type_': build_type})[0]
+        checksum_node = content.Checksum.create_or_update({
+            'checksum': checksum,
+            'algorithm': content.Checksum.guess_type(checksum),
+            'checksum_source': 'unsigned'})[0]
 
-    def get_or_create_rpm_artifact(self, id, name, version, release, arch, checksum):
+        artifact.checksums.connect(checksum_node)
+        return artifact
+
+    def create_or_update_rpm_artifact(self, rpm_id, name, version, release, arch, checksum):
         """
         Create or update an Artifact for this rpm.
 
-        :param str id: the rpm's id
+        :param str rpm_id: the rpm's id
         :param str name: the rpm's name, eg 'kernel'
         :param str version: the rpm's version, eg '1'
         :param str release: the rpm's release, eg '2.el7'
@@ -85,75 +87,49 @@ class Analyzer(ABC):
         """
         filename = f'{name}-{version}-{release}.{arch}.rpm'
         if arch == 'src':
-            type = content.Artifact.TYPES['srpm']
+            _type = 'srpm'
         else:
-            type = content.Artifact.TYPES['rpm']
-        artifact = content.Artifact.create_or_update({
-            'archive_id': id,
-            'type_': type,
-            'architecture': arch,
-            'checksum': checksum,
-            'filename': filename})[0]
+            _type = 'rpm'
+        return self.__create_or_update_artifact(rpm_id, _type, arch, filename, checksum)
 
-        checksum_node = content.Checksum.create_or_update({
-            'checksum': checksum,
-            'algorithm': content.Checksum.guess_type(checksum),
-            'checksum_source': content.Checksum.CHECKSUM_SOURCES['unsigned']})[0]
-
-        artifact.checksums.connect(checksum_node)
-        return artifact
-
-    def get_or_create_rpm_artifact_from_rpm_info(self, rpm_info):
+    def create_or_update_rpm_artifact_from_rpm_info(self, rpm_info):
         """
         Create or update an Artifact for this rpm from a dictionary.
 
-        :param str rpm_info: A dictionary of information, like one that comes from brew.
-                             Must contain the fields used in get_or_create_rpm_artifact.
+        :param dict rpm_info: A dictionary of information, like one that comes from brew.
+                             Must contain the fields used in create_or_update_rpm_artifact.
         :return: an Artifact object
         :rtype: assayist.common.models.content.Artifact
         """
-        return self.get_or_create_rpm_artifact(
-            id=rpm_info['id'],
+        return self.create_or_update_rpm_artifact(
+            rpm_id=rpm_info['id'],
             name=rpm_info['name'],
             version=rpm_info['version'],
             release=rpm_info['release'],
             arch=rpm_info['arch'],
             checksum=rpm_info['payloadhash'])
 
-    def get_or_create_archive_artifact(self, archive_id, filename, arch, type, checksum):
+    def create_or_update_archive_artifact(self, archive_id, filename, arch, archive_type, checksum):
         """
         Create or update an Artifact for this archive.
 
         :param str archive_id: the archives's id
         :param str filename: the archive's filename, eg 'maven.jar'
         :param str arch: the archive's architecture, eg 'x86_64' or None
-        :param str type: the archive's type, eg 'maven'
+        :param str archive_type: the archive's type, eg 'maven'
         :param str checksum: the archive's checksum, eg 'deadbeef1234'
         :return: an Artifact object
         :rtype: assayist.common.models.content.Artifact
         """
-        if type == 'image':
-            type = content.Artifact.TYPES['container']
-        elif type == 'maven':
-            type = content.Artifact.TYPES['maven']
+        if archive_type == 'image':
+            _type = 'container'
+        elif archive_type == 'maven':
+            _type = 'maven'
         else:
-            type = content.Artifact.TYPES['other']
+            _type = 'other'
+        return self.__create_or_update_artifact(archive_id, _type, arch, filename, checksum)
 
-        artifact = content.Artifact.create_or_update({
-            'archive_id': archive_id,
-            'type_': type,
-            'architecture': arch,
-            'filename': filename})[0]
-
-        checksum_node = content.Checksum.create_or_update({
-            'checksum': checksum,
-            'algorithm': content.Checksum.guess_type(checksum),
-            'checksum_source': content.Checksum.CHECKSUM_SOURCES['unsigned']})[0]
-
-        artifact.checksums.connect(checksum_node)
-        return artifact
-
-    def get_or_create_source_location(self, url, canonical_version):
+    def create_or_update_source_location(self, url, canonical_version):
         """
         Create or update SourceLocation.
 
@@ -163,22 +139,7 @@ class Analyzer(ABC):
         :return: a SourceLocation object
         :rtype: assayist.common.models.source.SourceLocation
         """
-        sl = source.SourceLocation.get_or_create({'url': url})[0]
+        sl = source.SourceLocation.create_or_update({'url': url})[0]
         if canonical_version:
             sl.canonical_version = canonical_version
-        return sl
-
-    def get_or_create_component(self, canonical_namespace, canonical_name, canonical_type):
-        """
-        Create or update Componenet.
-
-        :param str canonical_namespace: the namespace of the componenet, eg. 'com.redhat'
-        :param str canonical_name: the name of the componenet, eg. 'maven'
-        :param str canonical_type: the type of the componenet, eg. 'java'
-        :return: a Component object
-        :rtype: assayist.common.models.source.Component
-        """
-        return source.Component.get_or_create({
-            'canonical_namespace': canonical_namespace,
-            'canonical_name': canonical_name,
-            'canonical_type': canonical_type})[0]
+        return sl.save()
