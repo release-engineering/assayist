@@ -73,7 +73,15 @@ IMAGE1 = {'id': '1',
           'buildroot_id': '1',
           'btype': 'image',
           'type': 'tar',
-          'extra': {'image': {'arch': 'x86_64'}}}
+          'version': '6',
+          'release': '7.el7',
+          'extra': {
+              'image': {
+                  'arch': 'x86_64',
+                  'index': {
+                      'pull': [
+                          'repo.example.com/sherr/sherr-project@sha256:deadbeef',
+                          'repo.example.com/sherr/sherr-project:123-4321']}}}}
 
 IMAGE2 = {'id': '2',
           'checksum': '89506da3abd1de6a00c8d1403b3259e5',
@@ -81,7 +89,15 @@ IMAGE2 = {'id': '2',
           'buildroot_id': '2',
           'btype': 'image',
           'type': 'tar',
-          'extra': {'image': {'arch': 'ppc64le'}}}
+          'version': '6',
+          'release': '7.el7',
+          'extra': {
+              'image': {
+                  'arch': 'ppc64le',
+                  'index': {
+                      'pull': [
+                          'repo.example.com/sherr/sherr-project@sha256:deadbeef',
+                          'repo.example.com/sherr/sherr-project:123-4321']}}}}
 
 JAR = {'id': '3',
        'checksum': '89506da3abd1de6a00c8d1403b3259e6',
@@ -287,15 +303,11 @@ def test__construct_and_save_component():
     component.id  # exists, hence is saved
 
     btype = 'buildContainer'
-    binfo = {
-        'name': 'virt-api-container',
-        'version': '1.2',
-        'release': '4'}
-    component, version = analyzer._construct_and_save_component(btype, binfo)
-    assert version == '1.2-4'
-    assert component.canonical_namespace == 'container'
-    assert component.canonical_name == 'virt-api-container'
-    assert component.canonical_type == 'image'
+    component, version = analyzer._construct_and_save_component(btype, IMAGE1)
+    assert version == '6-7.el7'
+    assert component.canonical_namespace == 'repo.example.com'
+    assert component.canonical_name == 'sherr/sherr-project'
+    assert component.canonical_type == 'docker'
     component.id  # exists, hence is saved
 
 
@@ -388,7 +400,7 @@ def test_run():
 
     # assert the component is linked to the build
     assert source.component[0].canonical_name == 'virt-api-container'
-    assert source.component[0].canonical_type == 'image'
+    assert source.component[0].canonical_type == 'docker'
 
     # assert the embedded artifacts are linked (rpms contained inside an image)
     image1 = Artifact.nodes.get(filename=IMAGE1['filename'])

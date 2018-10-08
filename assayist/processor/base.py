@@ -134,7 +134,7 @@ class Analyzer(ABC):
         Create or update SourceLocation.
 
         :param str url: the url and possibly commit hash of the source location
-        :param str canonical_version: (optional) the version of the componenet that
+        :param str canonical_version: (optional) the version of the component that
                                       corresponds with this commit id
         :return: a SourceLocation object
         :rtype: assayist.common.models.source.SourceLocation

@@ -64,10 +64,19 @@ class MainAnalyzer(Analyzer):
             cversion = build_info['version'].replace('_', '-')
             ctype = 'java'
         elif build_type == 'buildContainer':
-            cnamespace = 'container'
-            cname = build_info['name']
+            # Theoretically this should exist for buildContainer builds.
+            # Get the repo / commit identifier and use it to extract namespace and name.
+            pulls = build_info.get('extra', {}).get('image', {}).get('index', {}).get('pull', [])
+            best_pull_list = [x for x in pulls if '@' in x]
+            if best_pull_list:
+                best_pull = best_pull_list[0]
+                cnamespace, rest = best_pull.split('/', 1)
+                cname, _ = rest.split('@', 1)
+            else:
+                cnamespace = 'docker'
+                cname = build_info['name']
             cversion = '%s-%s' % (build_info['version'], build_info['release'])
-            ctype = 'image'
+            ctype = 'docker'
         else:
             return None, None
 
