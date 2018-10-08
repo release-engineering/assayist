@@ -39,9 +39,9 @@ def download_build(build_identifier, output_dir):
     Download the artifacts associated with a Koji build.
 
     :param str/int build_identifier: the string of the builds NVR or the integer of the build ID
-    :param str output_dir: the path to download the the archives to
+    :param str output_dir: the path to download the archives to
     :return: a list of paths to the downloaded archives
-    :rtype: list
+    :rtype: tuple containing a list of downloaded artifacts and the build information
     """
     # Make sure the Koji command is installed
     _assert_command('koji')
@@ -84,7 +84,45 @@ def download_build(build_identifier, output_dir):
                 artifacts.append(file_path)
                 log.info(f'Downloaded {os.path.split(file_path)[-1]}')
 
-    return artifacts
+    return artifacts, build
+
+
+def download_source(build_info, output_dir):
+    """
+    Download the source (from dist-git) that was used in the specified build.
+
+    :param build_info: build information from koji.getBuild()
+    :param output_dir: the path to download the source to
+    """
+    # Make sure the git command is installed
+    _assert_command('git')
+
+    source_url = build_info.get('source')
+    if not source_url:
+        raise RuntimeError(f'Build {build_info["id"]} has no associated source URL.')
+
+    log.info(f'Downloading source for {build_info["id"]}')
+
+    url, _, commit_id = source_url.partition('#')
+    component = url.split('/')[-1]
+
+    cmd = ['git', 'clone', url]
+    process = subprocess.Popen(cmd, cwd=output_dir,
+                               stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+
+    _, error_output = process.communicate()
+    error_output = error_output.decode('utf-8')
+    if process.returncode != 0:
+        raise RuntimeError(f'The command "{" ".join(cmd)}" failed with: {error_output}')
+
+    cmd = ['git', 'reset', '--hard', commit_id]
+    subprocess.Popen(cmd, cwd=os.path.join(output_dir, component),
+                     stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,)
+
+    _, error_output = process.communicate()
+    error_output = error_output.decode('utf-8')
+    if process.returncode != 0:
+        raise RuntimeError(f'The command "{" ".join(cmd)}" failed with: {error_output}')
 
 
 def _rpm_to_cpio(rpm_file):
