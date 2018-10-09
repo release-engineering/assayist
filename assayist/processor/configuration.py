@@ -9,6 +9,8 @@ class Config(object):
 
     koji_profile = 'brew'
     log_level = logging.INFO
+    # Pull Neo connection url from env variable, default to local
+    DATABASE_URL = os.environ.get('NEO4J_BOLT_URL', 'bolt://neo4j:neo4j@localhost:7687')
 
 
 class ProdConfig(Config):
