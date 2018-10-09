@@ -46,6 +46,10 @@ class SourceLocation(AssayistStructuredNode):
     component = RelationshipTo('Component', 'SOURCE_FOR', cardinality=ZeroOrOne)
     # Source locations that are embedded in this source location
     embedded_source_locations = RelationshipTo('SourceLocation', 'EMBEDS')
+    # The next version of this artifact
+    next_version = RelationshipFrom('SourceLocation', 'SUPERSEDES', cardinality=ZeroOrOne)
+    # The previous version of this artifact
+    previous_version = RelationshipTo('SourceLocation', 'SUPERSEDES', cardinality=ZeroOrOne)
     # Source locations this source location is embedded in
     source_locations_embedded_in = RelationshipFrom('SourceLocation', 'EMBEDS')
     # The upstream source location for this source location (applies to internal only)
