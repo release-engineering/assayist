@@ -85,6 +85,8 @@ class Analyzer(ABC):
         :return: an Artifact object
         :rtype: assayist.common.models.content.Artifact
         """
+        # RPM lists from Brew don't contain filename, but that's okay because they follow a
+        # strict pattern.
         filename = f'{name}-{version}-{release}.{arch}.rpm'
         if arch == 'src':
             _type = 'srpm'
