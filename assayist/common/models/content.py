@@ -20,7 +20,7 @@ class Build(AssayistStructuredNode):
     # Call it "id_" to not overshadow the Neo4j internal ID used by neomodel, but call
     # it "id" in Neo4j
     id_ = StringProperty(db_property='id', required=True, unique_index=True)
-    type_ = StringProperty(db_property='type')
+    type_ = StringProperty(db_property='type', required=True)
 
     # The artifacts that were produced by this build
     artifacts = RelationshipTo('Artifact', 'PRODUCED')
