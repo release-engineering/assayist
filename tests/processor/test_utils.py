@@ -68,7 +68,7 @@ def test_download_build(m_popen, m_get_koji_session, m_assert_command):
     process_calls = [m_process_rpm, m_process_maven, m_process_image]
     m_popen.side_effect = process_calls
     with mock.patch('os.path.isdir', return_value=True):
-        rv = utils.download_build(12345, '/some/path')
+        rv, _ = utils.download_build(12345, '/some/path')
 
     assert rv == [
         '/some/path/resultsdb-2.1.0-2.el7.noarch.rpm',
@@ -78,6 +78,35 @@ def test_download_build(m_popen, m_get_koji_session, m_assert_command):
     ]
     assert m_popen.call_count == 3
     m_koji_session.getBuild.assert_called_once_with(12345)
+
+
+@mock.patch('assayist.processor.utils._assert_command')
+@mock.patch('subprocess.Popen')
+def test_download_source(m_popen, m_assert_command):
+    """Test the download_source function."""
+    build_info = {
+        'id': 12345,
+        'source': 'git://pkgs.com/containers/rsyslog#4a4109c3e85908b6899b1aa291570f7c7b5a0cb5',
+    }
+
+    m_process = mock.Mock()
+    m_process.communicate.return_value = (b'', b'')
+    m_process.returncode = 0
+    m_popen.return_value = m_process
+
+    utils.download_source(build_info, '/some/path')
+
+    assert m_popen.call_count == 2
+    assert m_process.communicate.call_count == 2
+
+    m_popen.assert_has_calls([
+        mock.call(['git', 'clone', 'git://pkgs.com/containers/rsyslog'], cwd='/some/path',
+                  stdout=subprocess.DEVNULL, stderr=subprocess.PIPE),
+        mock.call().communicate(),
+        mock.call(['git', 'reset', '--hard', '4a4109c3e85908b6899b1aa291570f7c7b5a0cb5'],
+                  cwd='/some/path/rsyslog', stdout=subprocess.DEVNULL, stderr=subprocess.PIPE),
+        mock.call().communicate(),
+    ])
 
 
 @mock.patch('subprocess.Popen')

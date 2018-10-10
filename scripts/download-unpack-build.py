@@ -4,7 +4,7 @@ import argparse
 import logging
 import os
 
-from assayist.processor.utils import download_build, unpack_artifacts
+from assayist.processor.utils import download_build, unpack_artifacts, download_source
 
 
 # Always set the logging to INFO
@@ -29,11 +29,17 @@ except ValueError:
 output_dir = args.output_dir or '.'
 
 output_files_dir = os.path.join(output_dir, 'output_files')
+output_source_dir = os.path.join(output_dir, 'source')
 unpacked_archives_dir = os.path.join(output_dir, 'unpacked_archives')
-for directory in (output_files_dir, unpacked_archives_dir):
+
+for directory in (output_files_dir, unpacked_archives_dir, output_source_dir):
     if not os.path.isdir(directory):
         os.mkdir(directory)
-artifacts = download_build(build_identifier, output_files_dir)
+
+artifacts, build_info = download_build(build_identifier, output_files_dir)
+download_source(build_info, output_source_dir)
 unpack_artifacts(artifacts, unpacked_archives_dir)
+
 log.info(f'See the downloaded archives at {output_files_dir}')
+log.info(f'See the downloaded source at {output_source_dir}')
 log.info(f'See the unpacked archives at {unpacked_archives_dir}')
