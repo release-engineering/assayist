@@ -10,6 +10,7 @@ import tarfile
 import mock
 import pytest
 
+from assayist.processor.base import Analyzer
 from assayist.processor import utils
 
 
@@ -27,6 +28,108 @@ def test_assert_command_not_found():
             assert utils._assert_command('bash') is None
             assert str(e) == 'The command "bash" is not installed and is required'
         mock_which.assert_called_once_with('bash')
+
+
+@mock.patch('assayist.processor.utils._assert_command')
+@mock.patch('assayist.processor.utils.get_koji_session')
+@mock.patch('assayist.processor.utils.write_file')
+def test_download_build_data_full_data(m_write_file, m_get_koji_session, m_assert_command):
+    """Test the download_build_data function with all available data."""
+    # Setup for a 'full data' test. The actual values of most return values doesn't matter.
+    PATH = '/some/path'
+    BUILD_INFO = {'task_id': 2}
+    TASK_INFO = {'a task': 5}
+    MAVEN_INFO = {'other': 'stuff'}
+    RPM_INFO = [{'buildroot_id': '2'}, {'buildroot_id': '3'}]
+    ARCHIVE_INFO = [{'buildroot_id': '3', 'id': '1'},
+                    {'buildroot_id': '4', 'id': '2', 'btype': 'image'}]
+    BUILDROOT_INFO = {'a buldroot': 'ok'}
+
+    m_koji = mock.Mock()
+    m_koji.getBuild.return_value = BUILD_INFO
+    m_koji.getTaskInfo.return_value = TASK_INFO
+    m_koji.getMavenBuild.return_value = MAVEN_INFO
+    m_koji.listRPMs.return_value = RPM_INFO
+    m_koji.listArchives.return_value = ARCHIVE_INFO
+    m_koji.getBuildrootListing.return_value = BUILDROOT_INFO
+    m_get_koji_session.return_value = m_koji
+
+    utils.download_build_data(1, PATH)
+
+    # Assert that the brew calls we expect happened.
+    m_koji.getBuild.assert_called_once_with(1)
+    m_koji.getTaskInfo.assert_called_once_with(2)
+    m_koji.getMavenBuild.assert_called_once_with(1)
+    # One regular and one for the image
+    assert m_koji.listRPMs.call_count == 2
+    m_koji.listRPMs.assert_has_calls([
+        mock.call(1),
+        mock.call(imageID='2'),
+    ])
+    m_koji.listArchives.assert_called_once_with(1)
+    assert m_koji.getBuildrootListing.call_count == 3
+    m_koji.getBuildrootListing.assert_has_calls([
+        mock.call('2'),
+        mock.call('3'),
+        mock.call('4'),
+    ])
+
+    # Now assert that the data we returned was successfully written through to the files.
+    # Since the second Archive is an image we expect to call listRPMs for that image
+    # and write it to IMAGE_RPM_FILE.
+    IMAGE_INFO = {'2': RPM_INFO}
+    # The buildroot info should be repeated for each buildroot.
+    ALL_BUILDROOT_INFO = {'2': BUILDROOT_INFO, '3': BUILDROOT_INFO, '4': BUILDROOT_INFO}
+
+    assert m_write_file.call_count == 7
+    m_write_file.assert_has_calls([
+        mock.call(BUILD_INFO, PATH, Analyzer.BUILD_FILE),
+        mock.call(TASK_INFO, PATH, Analyzer.TASK_FILE),
+        mock.call(MAVEN_INFO, PATH, Analyzer.MAVEN_FILE),
+        mock.call(RPM_INFO, PATH, Analyzer.RPM_FILE),
+        mock.call(ARCHIVE_INFO, PATH, Analyzer.ARCHIVE_FILE),
+        mock.call(IMAGE_INFO, PATH, Analyzer.IMAGE_RPM_FILE),
+        mock.call(ALL_BUILDROOT_INFO, PATH, Analyzer.BUILDROOT_FILE),
+    ])
+
+
+@mock.patch('assayist.processor.utils._assert_command')
+@mock.patch('assayist.processor.utils.get_koji_session')
+@mock.patch('assayist.processor.utils.write_file')
+def test_download_build_data_empty_data(m_write_file, m_get_koji_session, m_assert_command):
+    """Test the download_build_data function with missing data."""
+    # Setup for a 'full data' test. The actual values of most return values doesn't matter.
+    PATH = '/some/path'
+    BUILD_INFO = {'task_id': None}
+    RPM_INFO = []
+    ARCHIVE_INFO = []
+
+    m_koji = mock.Mock()
+    m_koji.getBuild.return_value = BUILD_INFO
+    m_koji.getTaskInfo.return_value = None
+    m_koji.getMavenBuild.return_value = None
+    m_koji.listRPMs.return_value = RPM_INFO
+    m_koji.listArchives.return_value = ARCHIVE_INFO
+    m_koji.getBuildrootListing.return_value = None
+    m_get_koji_session.return_value = m_koji
+
+    utils.download_build_data(1, PATH)
+
+    # Assert that the brew calls we expect happened.
+    m_koji.getBuild.assert_called_once_with(1)
+    assert m_koji.getTaskInfo.call_count == 0
+    m_koji.getMavenBuild.assert_called_once_with(1)
+    # One regular and one for the image
+    m_koji.listRPMs.assert_called_once_with(1)
+    m_koji.listArchives.assert_called_once_with(1)
+    assert m_koji.getBuildrootListings.call_count == 0
+
+    # Now assert that only the data we returned was successfully written through to the files.
+
+    assert m_write_file.call_count == 1
+    m_write_file.assert_has_calls([
+        mock.call(BUILD_INFO, PATH, Analyzer.BUILD_FILE),
+    ])
 
 
 @mock.patch('assayist.processor.utils._assert_command')

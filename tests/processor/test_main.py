@@ -291,12 +291,14 @@ def test__construct_and_save_component():
     component.id  # exists, hence is saved
 
     btype = 'maven'
-    binfo = {
-        'name': 'com.redhat.fuse.eap-fuse-eap',
-        'version': '6.3.0.redhat_356',
-        'release': '1'}
-    component, version = analyzer._construct_and_save_component(btype, binfo)
-    assert version == '6.3.0.redhat-356'
+    maven_info = {
+        'group_id': 'com.redhat.fuse.eap',
+        'artifact_id': 'fuse-eap',
+        'version': '6.3.0.redhat_356'}
+    with mock.patch.object(analyzer, 'read_metadata_file') as mocked_f:
+        mocked_f.return_value = maven_info
+        component, version = analyzer._construct_and_save_component(btype, binfo)
+    assert version == '6.3.0.redhat_356'
     assert component.canonical_namespace == 'com.redhat.fuse.eap'
     assert component.canonical_name == 'fuse-eap'
     assert component.canonical_type == 'java'
@@ -313,8 +315,6 @@ def test__construct_and_save_component():
 
 def read_metadata_test_data(self, FILE):
     """Mock out this function so we can use test data."""
-    if FILE == base.Analyzer.MESSAGE_FILE:
-        return {'info': {'build_id': 759153}}
     if FILE == base.Analyzer.BUILD_FILE:
         return {'id': 759153,
                 'source': SOURCE_URL,
@@ -323,6 +323,8 @@ def read_metadata_test_data(self, FILE):
                 'release': '4'}
     if FILE == base.Analyzer.TASK_FILE:
         return {'method': 'buildContainer'}
+    if FILE == base.Analyzer.MAVEN_FILE:
+        return {'group_id': 'com.example', 'artifact_id': 'maven', 'version': '1'}
     if FILE == base.Analyzer.RPM_FILE:
         return [VIM_1_2_3, SSH_9_8_7]
     if FILE == base.Analyzer.ARCHIVE_FILE:

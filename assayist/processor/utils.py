@@ -9,6 +9,7 @@ import zipfile
 
 import koji
 
+from assayist.processor.base import Analyzer
 from assayist.processor.configuration import config
 from assayist.processor.logging import log
 
@@ -32,6 +33,76 @@ def _assert_command(cmd_name):
     """
     if not shutil.which(cmd_name):
         raise RuntimeError(f'The command "{cmd_name}" is not installed and is required')
+
+
+def write_file(data, in_dir, in_file):
+    """
+    Write the data to the specified JSON file.
+
+    :param dict/list data: the data to write out to JSON. Must be serializable.
+    :param str in_file: The name of the input file to read. Probably one of the class constants.
+    :param str in_dir: The directory the file is in. Defaults to METADATA_DIR.
+    """
+    with open(os.path.join(in_dir, in_file), 'w') as f:
+        json.dump(data, f)
+
+
+def download_build_data(build_identifier, output_dir=Analyzer.METADATA_DIR):
+    """
+    Download the JSON data associated with a build.
+
+    :param str/int build_identifier: the string of the builds NVR or the integer of the build ID
+    :param str output_dir: the path to download the brew info to
+    """
+    # Make sure the Koji command is installed
+    _assert_command('koji')
+    koji = get_koji_session()
+    build = koji.getBuild(build_identifier)
+    write_file(build, output_dir, Analyzer.BUILD_FILE)
+
+    # get task info
+    if 'task_id' in build and build['task_id']:
+        task = koji.getTaskInfo(build['task_id'])
+        write_file(task, output_dir, Analyzer.TASK_FILE)
+
+    # get maven info
+    maven = koji.getMavenBuild(build_identifier)
+    if maven:
+        write_file(maven, output_dir, Analyzer.MAVEN_FILE)
+
+    # get rpms
+    rpms = koji.listRPMs(build_identifier)
+    if rpms:
+        write_file(rpms, output_dir, Analyzer.RPM_FILE)
+
+    # get archives
+    archives = koji.listArchives(build_identifier)
+    if archives:
+        write_file(archives, output_dir, Analyzer.ARCHIVE_FILE)
+
+    # get rpms in each image
+    image_rpms = {}
+    for archive in archives:
+        if 'btype' in archive and archive['btype'] == 'image':
+            aid = archive['id']
+            image_rpms[aid] = koji.listRPMs(imageID=aid)
+
+    if image_rpms:
+        write_file(image_rpms, output_dir, Analyzer.IMAGE_RPM_FILE)
+
+    # get rpms in the buildroots
+    buildroot_ids = set()
+    for artifact in rpms + archives:
+        bid = artifact['buildroot_id']
+        if bid:
+            buildroot_ids.add(bid)
+
+    buildroot_components = {}
+    for bid in sorted(buildroot_ids):
+        buildroot_components[bid] = koji.getBuildrootListing(bid)
+
+    if buildroot_components:
+        write_file(buildroot_components, output_dir, Analyzer.BUILDROOT_FILE)
 
 
 def download_build(build_identifier, output_dir):
