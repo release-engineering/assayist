@@ -14,14 +14,14 @@ from assayist.processor.logging import log
 class Analyzer(ABC):
     """Base Abstract class that analyzers will inherit from."""
 
-    METADATA_DIR = '/metadata/'
-    MESSAGE_FILE = METADATA_DIR + 'message.json'
-    BUILD_FILE = METADATA_DIR + 'buildinfo.json'
-    TASK_FILE = METADATA_DIR + 'taskinfo.json'
-    RPM_FILE = METADATA_DIR + 'rpms.json'
-    ARCHIVE_FILE = METADATA_DIR + 'archives.json'
-    IMAGE_RPM_FILE = METADATA_DIR + 'image-rpms.json'
-    BUILDROOT_FILE = METADATA_DIR + 'buildroot-components.json'
+    METADATA_DIR = '/metadata'
+    BUILD_FILE = 'buildinfo.json'
+    TASK_FILE = 'taskinfo.json'
+    MAVEN_FILE = 'maveninfo.json'
+    RPM_FILE = 'rpms.json'
+    ARCHIVE_FILE = 'archives.json'
+    IMAGE_RPM_FILE = 'image-rpms.json'
+    BUILDROOT_FILE = 'buildroot-components.json'
 
     def main(self):
         """Call this to run the analyzer."""
@@ -41,20 +41,22 @@ class Analyzer(ABC):
     def run(self):
         """Implement analyzer code here in your subclass."""
 
-    def read_metadata_file(self, in_file):
+    def read_metadata_file(self, in_file, in_dir=METADATA_DIR):
         """
         Read and return the specified json metadata file or an empty dict.
 
-        :param str in_file: The path to the input file to read. Probably one of the class constants.
+        :param str in_file: The name of the input file to read. Probably one of the class constants.
+        :param str in_dir: The directory the file is in. Defaults to METADATA_DIR.
         :return: a dict or list read from the file, or an empty dict
         :rtype: {}
         :raises ValueError: if the file was not valid json content
         """
-        if os.path.isfile(in_file):
-            with open(in_file, 'r') as f:
+        filename = os.path.join(in_dir, in_file)
+        if os.path.isfile(filename):
+            with open(filename, 'r') as f:
                 return json.load(f)
         else:
-            log.debug('File not found: %s, returning empty dict', in_file)
+            log.debug('File not found: %s, returning empty dict', filename)
             return {}
 
     def __create_or_update_artifact(self, archive_id, archive_type, arch, filename, checksum):

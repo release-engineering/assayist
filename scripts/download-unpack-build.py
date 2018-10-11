@@ -4,7 +4,7 @@ import argparse
 import logging
 import os
 
-from assayist.processor.utils import download_build, unpack_artifacts, download_source
+from assayist.processor import utils
 
 
 # Always set the logging to INFO
@@ -28,18 +28,21 @@ except ValueError:
 
 output_dir = args.output_dir or '.'
 
+output_metadata_dir = os.path.join(output_dir, 'metadata')
 output_files_dir = os.path.join(output_dir, 'output_files')
 output_source_dir = os.path.join(output_dir, 'source')
 unpacked_archives_dir = os.path.join(output_dir, 'unpacked_archives')
 
-for directory in (output_files_dir, unpacked_archives_dir, output_source_dir):
+for directory in (output_metadata_dir, output_files_dir, unpacked_archives_dir, output_source_dir):
     if not os.path.isdir(directory):
         os.mkdir(directory)
 
-artifacts, build_info = download_build(build_identifier, output_files_dir)
-download_source(build_info, output_source_dir)
-unpack_artifacts(artifacts, unpacked_archives_dir)
+utils.download_build_data(build_identifier, output_metadata_dir)
+artifacts, build_info = utils.download_build(build_identifier, output_files_dir)
+utils.download_source(build_info, output_source_dir)
+utils.unpack_artifacts(artifacts, unpacked_archives_dir)
 
+log.info(f'See the downloaded brew metadata at {output_metadata_dir}')
 log.info(f'See the downloaded archives at {output_files_dir}')
 log.info(f'See the downloaded source at {output_source_dir}')
 log.info(f'See the unpacked archives at {unpacked_archives_dir}')
