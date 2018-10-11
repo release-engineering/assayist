@@ -41,13 +41,13 @@ def write_file(data, in_dir, in_file):
 
     :param dict/list data: the data to write out to JSON. Must be serializable.
     :param str in_file: The name of the input file to read. Probably one of the class constants.
-    :param str in_dir: The directory the file is in. Defaults to METADATA_DIR.
+    :param str in_dir: The directory the file is in.
     """
     with open(os.path.join(in_dir, in_file), 'w') as f:
         json.dump(data, f)
 
 
-def download_build_data(build_identifier, output_dir=Analyzer.METADATA_DIR):
+def download_build_data(build_identifier, output_dir='/metadata'):
     """
     Download the JSON data associated with a build.
 

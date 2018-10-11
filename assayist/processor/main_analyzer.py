@@ -151,7 +151,3 @@ class MainAnalyzer(Analyzer):
                     archive.embedded_artifacts.connect(rpm)
 
         self._read_and_save_buildroots()
-
-
-if __name__ == '__main__':
-    MainAnalyzer.main()

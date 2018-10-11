@@ -14,7 +14,6 @@ from assayist.processor.logging import log
 class Analyzer(ABC):
     """Base Abstract class that analyzers will inherit from."""
 
-    METADATA_DIR = '/metadata'
     BUILD_FILE = 'buildinfo.json'
     TASK_FILE = 'taskinfo.json'
     MAVEN_FILE = 'maveninfo.json'
@@ -23,8 +22,13 @@ class Analyzer(ABC):
     IMAGE_RPM_FILE = 'image-rpms.json'
     BUILDROOT_FILE = 'buildroot-components.json'
 
-    def main(self):
-        """Call this to run the analyzer."""
+    def main(self, input_dir='/metadata'):
+        """
+        Call this to run the analyzer.
+
+        :param str input_dir: The directory in which to find the files.
+        """
+        self.input_dir = input_dir
         neomodel.db.set_connection(config.DATABASE_URL)
         # run the analyzer in a transaction
         neomodel.db.begin()
@@ -41,17 +45,16 @@ class Analyzer(ABC):
     def run(self):
         """Implement analyzer code here in your subclass."""
 
-    def read_metadata_file(self, in_file, in_dir=METADATA_DIR):
+    def read_metadata_file(self, in_file):
         """
         Read and return the specified json metadata file or an empty dict.
 
         :param str in_file: The name of the input file to read. Probably one of the class constants.
-        :param str in_dir: The directory the file is in. Defaults to METADATA_DIR.
         :return: a dict or list read from the file, or an empty dict
         :rtype: {}
         :raises ValueError: if the file was not valid json content
         """
-        filename = os.path.join(in_dir, in_file)
+        filename = os.path.join(self.input_dir, in_file)
         if os.path.isfile(filename):
             with open(filename, 'r') as f:
                 return json.load(f)
