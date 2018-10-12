@@ -27,6 +27,9 @@ COPY . .
 # Normally we'd use `pip3 install . --no-deps`, but that doesn't fully install the submodules.
 RUN python3 setup.py develop --no-deps --prefix /usr
 
+# Add the utility scripts folder as an executable path
+ENV PATH "/src/scripts:${PATH}"
+
 USER 1001
 # TODO: Change this once we have a startup script
 CMD ["/bin/bash"]
