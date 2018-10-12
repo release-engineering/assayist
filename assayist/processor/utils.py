@@ -187,8 +187,8 @@ def download_source(build_info, output_dir):
         raise RuntimeError(f'The command "{" ".join(cmd)}" failed with: {error_output}')
 
     cmd = ['git', 'reset', '--hard', commit_id]
-    subprocess.Popen(cmd, cwd=os.path.join(output_dir, component),
-                     stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,)
+    process = subprocess.Popen(cmd, cwd=os.path.join(output_dir, component),
+                               stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
 
     _, error_output = process.communicate()
     error_output = error_output.decode('utf-8')
