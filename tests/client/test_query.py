@@ -28,7 +28,7 @@ def test_get_container_by_component():
     )
     rpm_internal_source = SourceLocation(url=rpm_internal_source_url).save()
 
-    rpm_upstream_url = ('http://www.rsyslog.com/files/download/rsyslog/rsyslog-7.6.7.tar.gz')
+    rpm_upstream_url = 'http://www.rsyslog.com/files/download/rsyslog/rsyslog-7.6.7.tar.gz'
     rpm_upstream_source = SourceLocation(url=rpm_upstream_url, canonical_version='7.6.7').save()
     rpm_internal_source.upstream.connect(rpm_upstream_source)
 
@@ -52,7 +52,88 @@ def test_get_container_by_component():
 
 def test_get_container_with_preceding_versions():
     """Test the get_container_by_component function with a component with preceding versions."""
-    pass
+    # First build
+    c_build = Build(id_='123456', type_='container').save()
+
+    c_filename = ('docker-image-sha256:98217b7c89052267e1ed02a41217c2e03577b96125e923e9594'
+                  '1ac010f209ee6.x86_64.tar.gz')
+    c_artifact = Artifact(
+        archive_id='742663', architecture='x86_64', filename=c_filename,
+        type_='container'
+    ).save()
+    c_build.artifacts.connect(c_artifact)
+
+    c_internal_url = ('git://pks.domain.local/containers/rsyslog#'
+                      '3dcd6fc75e674589ac7d2294dbf79bd8ebd459fb')
+    c_internal_source = SourceLocation(url=c_internal_url).save()
+    c_build.source_location.connect(c_internal_source)
+
+    rpm_internal_source_url = (
+        'git://pkgs.devel.redhat.com/rpms/rsyslog#5d99244f963e634c60b458c0c2884ee63d7e8827'
+    )
+    rpm_internal_source = SourceLocation(url=rpm_internal_source_url).save()
+
+    rpm_upstream_url = 'http://www.rsyslog.com/files/download/rsyslog/rsyslog-7.6.7.tar.gz'
+    rpm_upstream_source = SourceLocation(url=rpm_upstream_url, canonical_version='7.6.7').save()
+    rpm_internal_source.upstream.connect(rpm_upstream_source)
+
+    rpm_component = Component(canonical_name='rsyslog', canonical_type='generic',
+                              canonical_namespace='').save()
+    rpm_upstream_source.component.connect(rpm_component)
+
+    rpm_artifact = Artifact(
+        archive_id='760135', architecture='x86_64', filename='rsyslog-8.24.0-34.el7.x86_64.rpm',
+        type_='rpm'
+    ).save()
+
+    rpm_build = Build(id_='789012', type_='rpm').save()
+    rpm_build.artifacts.connect(rpm_artifact)
+    rpm_build.source_location.connect(rpm_internal_source)
+
+    c_artifact.embedded_artifacts.connect(rpm_artifact)
+
+    # Preceding (older) build
+    c2_build = Build(id_='999999', type_='container').save()
+
+    c2_filename = ('docker-image-sha256:aaaaaaac89052267e1ed02a41217c2e03577b96125e923e9594'
+                   '1ac010f209ee6.x86_64.tar.gz')
+    c2_artifact = Artifact(
+        archive_id='111111', architecture='x86_64', filename=c2_filename,
+        type_='container'
+    ).save()
+    c2_build.artifacts.connect(c2_artifact)
+
+    c2_internal_url = ('git://pks.domain.local/containers/rsyslog#'
+                       '4997eda6041062b57dae893c70e30d680ba22b0a')
+    c2_internal_source = SourceLocation(url=c2_internal_url).save()
+    c2_build.source_location.connect(c2_internal_source)
+
+    preceding_rpm_internal_source_url = (
+        'git://pkgs.devel.redhat.com/rpms/rsyslog#008741c08b950e5d60620dae44c8eabd78391706'
+    )
+    preceding_rpm_internal_source = SourceLocation(url=preceding_rpm_internal_source_url).save()
+
+    preceding_rpm_upstream_url = ('http://www.rsyslog.com/files/download/rsyslog/rsyslog-7.6.4'
+                                  '.tar.gz')
+    preceding_rpm_upstream_source = SourceLocation(url=preceding_rpm_upstream_url,
+                                                   canonical_version='7.6.4').save()
+    preceding_rpm_internal_source.upstream.connect(preceding_rpm_upstream_source)
+    rpm_upstream_source.previous_version.connect(preceding_rpm_upstream_source)
+
+    preceding_rpm_upstream_source.component.connect(rpm_component)  # Link to already created Comp
+
+    preceding_rpm_artifact = Artifact(
+        archive_id='222222', architecture='x86_64', filename='rsyslog-8.24.0-99.el7.x86_64.rpm',
+        type_='rpm'
+    ).save()
+
+    preceding_rpm_build = Build(id_='333333', type_='rpm').save()
+    preceding_rpm_build.artifacts.connect(preceding_rpm_artifact)
+    preceding_rpm_build.source_location.connect(preceding_rpm_internal_source)
+
+    c2_artifact.embedded_artifacts.connect(preceding_rpm_artifact)
+
+    assert query.get_container_by_component('rsyslog', '7.6.7') == {'123456', '999999'}
 
 
 def test_get_container_by_embedded_component():
