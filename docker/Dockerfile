@@ -23,7 +23,9 @@ RUN mkdir /src
 WORKDIR /src
 COPY . .
 
-RUN pip3 install . --no-deps
+# Use develop so that we can pass the `--no-deps` argument, since the deps are installed via RPM.
+# Normally we'd use `pip3 install . --no-deps`, but that doesn't fully install the submodules.
+RUN python3 setup.py develop --no-deps --prefix /usr
 
 USER 1001
 # TODO: Change this once we have a startup script
