@@ -14,6 +14,7 @@ RUN dnf -y install \
   --setopt=tsflags=nodocs \
   # Install brewkoji for the koji.conf.d config file
   brewkoji \
+  git-core \
   python3-koji \
   python3-neomodel \
   && dnf clean all
