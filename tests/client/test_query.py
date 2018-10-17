@@ -99,6 +99,7 @@ def test_get_source_components_for_build():
     bash_internal_source.upstream.connect(bash_upstream_source)
     bash_component = Component(canonical_type='generic', canonical_namespace='',
                                canonical_name='bash').save()
+    bash_internal_source.component.connect(bash_component)
     bash_upstream_source.component.connect(bash_component)
 
     # Parent image
@@ -145,6 +146,7 @@ def test_get_source_components_for_build():
     etcd_internal_source.upstream.connect(etcd_upstream_source)
     etcd_component = Component(canonical_type='github', canonical_namespace='coreos',
                                canonical_name='etcd').save()
+    etcd_internal_source.component.connect(etcd_component)
     etcd_upstream_source.component.connect(etcd_component)
 
     # The container itself
@@ -169,10 +171,11 @@ def test_get_source_components_for_build():
     # gopkg.in/fsnotify.v1@c282820[...] =v1.4.7 ~v1.4.7
     configmap_reload = SourceLocation(url='https://github.com/jimmidyson/configmap-reload',
                                       canonical_version='v0.2.2').save()
-    configmap_reload.component.connect(
-        Component(canonical_type='golang',
-                  canonical_namespace='github.com/jimmidyson',
-                  canonical_name='configmap-reload').save())
+    configmap_reload_component = Component(
+        canonical_type='golang',
+        canonical_namespace='github.com/jimmidyson',
+        canonical_name='configmap-reload').save()
+    configmap_reload.component.connect(configmap_reload_component)
     x_sys = SourceLocation(url='https://go.googlesource.com/sys',
                            canonical_version='v0.0.0-0.20150901164945-9c60d1c508f5').save()
     x_sys.component.connect(
@@ -187,6 +190,7 @@ def test_get_source_components_for_build():
                   canonical_name='fsnotify.v1').save())
 
     container_internal_source.upstream.connect(configmap_reload)
+    container_internal_source.component.connect(configmap_reload_component)
     container_internal_source.embedded_source_locations.connect(x_sys)
     container_internal_source.embedded_source_locations.connect(fsnotify)
 

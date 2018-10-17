@@ -133,6 +133,9 @@ def get_source_components_for_build(build_id):
     // Find the components these locations are source for
             -[:SOURCE_FOR]-> (c:Component)
 
+    // Only include source locations with no further upstream
+    WHERE NOT (sl) -[:UPSTREAM]-> (:SourceLocation)
+
     RETURN a, sl, c
     """.format(','.join(repr(dbid) for dbid in artifact_dbids))
 
