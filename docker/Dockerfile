@@ -14,6 +14,7 @@ RUN dnf -y install \
   --setopt=tsflags=nodocs \
   # Install brewkoji for the koji.conf.d config file
   brewkoji \
+  git-core \
   python3-koji \
   python3-neomodel \
   && dnf clean all
@@ -22,7 +23,12 @@ RUN mkdir /src
 WORKDIR /src
 COPY . .
 
-RUN pip3 install . --no-deps
+# Use develop so that we can pass the `--no-deps` argument, since the deps are installed via RPM.
+# Normally we'd use `pip3 install . --no-deps`, but that doesn't fully install the submodules.
+RUN python3 setup.py develop --no-deps --prefix /usr
+
+# Add the utility scripts folder as an executable path
+ENV PATH "/src/scripts:${PATH}"
 
 USER 1001
 # TODO: Change this once we have a startup script

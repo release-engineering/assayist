@@ -57,11 +57,11 @@ class MainAnalyzer(Analyzer):
             ctype = 'rpm'
             cversion = '%s-%s' % (build_info['version'], build_info['release'])
         elif build_type == 'maven':
-            # What we really want is the contents of the "Maven groupId" etc fields.
-            # However they don't seem to be included in the brew response?!
-            # Instead let's parse it out with what is (as best as I can tell) the algorithm.
-            cnamespace, cname = build_info['name'].split('-', 1)
-            cversion = build_info['version'].replace('_', '-')
+            # If it's a maven build then the maven info file should exist with the info we need.
+            maven_info = self.read_metadata_file(self.MAVEN_FILE)
+            cnamespace = maven_info['group_id']
+            cname = maven_info['artifact_id']
+            cversion = maven_info['version']
             ctype = 'java'
         elif build_type == 'buildContainer':
             # Theoretically this should exist for buildContainer builds.
@@ -151,7 +151,3 @@ class MainAnalyzer(Analyzer):
                     archive.embedded_artifacts.connect(rpm)
 
         self._read_and_save_buildroots()
-
-
-if __name__ == '__main__':
-    MainAnalyzer.main()

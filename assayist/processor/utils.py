@@ -9,6 +9,7 @@ import zipfile
 
 import koji
 
+from assayist.processor.base import Analyzer
 from assayist.processor.configuration import config
 from assayist.processor.logging import log
 
@@ -34,14 +35,84 @@ def _assert_command(cmd_name):
         raise RuntimeError(f'The command "{cmd_name}" is not installed and is required')
 
 
+def write_file(data, in_dir, in_file):
+    """
+    Write the data to the specified JSON file.
+
+    :param dict/list data: the data to write out to JSON. Must be serializable.
+    :param str in_file: The name of the input file to read. Probably one of the class constants.
+    :param str in_dir: The directory the file is in.
+    """
+    with open(os.path.join(in_dir, in_file), 'w') as f:
+        json.dump(data, f)
+
+
+def download_build_data(build_identifier, output_dir='/metadata'):
+    """
+    Download the JSON data associated with a build.
+
+    :param str/int build_identifier: the string of the builds NVR or the integer of the build ID
+    :param str output_dir: the path to download the brew info to
+    """
+    # Make sure the Koji command is installed
+    _assert_command('koji')
+    koji = get_koji_session()
+    build = koji.getBuild(build_identifier)
+    write_file(build, output_dir, Analyzer.BUILD_FILE)
+
+    # get task info
+    if 'task_id' in build and build['task_id']:
+        task = koji.getTaskInfo(build['task_id'])
+        write_file(task, output_dir, Analyzer.TASK_FILE)
+
+    # get maven info
+    maven = koji.getMavenBuild(build_identifier)
+    if maven:
+        write_file(maven, output_dir, Analyzer.MAVEN_FILE)
+
+    # get rpms
+    rpms = koji.listRPMs(build_identifier)
+    if rpms:
+        write_file(rpms, output_dir, Analyzer.RPM_FILE)
+
+    # get archives
+    archives = koji.listArchives(build_identifier)
+    if archives:
+        write_file(archives, output_dir, Analyzer.ARCHIVE_FILE)
+
+    # get rpms in each image
+    image_rpms = {}
+    for archive in archives:
+        if 'btype' in archive and archive['btype'] == 'image':
+            aid = archive['id']
+            image_rpms[aid] = koji.listRPMs(imageID=aid)
+
+    if image_rpms:
+        write_file(image_rpms, output_dir, Analyzer.IMAGE_RPM_FILE)
+
+    # get rpms in the buildroots
+    buildroot_ids = set()
+    for artifact in rpms + archives:
+        bid = artifact['buildroot_id']
+        if bid:
+            buildroot_ids.add(bid)
+
+    buildroot_components = {}
+    for bid in sorted(buildroot_ids):
+        buildroot_components[bid] = koji.getBuildrootListing(bid)
+
+    if buildroot_components:
+        write_file(buildroot_components, output_dir, Analyzer.BUILDROOT_FILE)
+
+
 def download_build(build_identifier, output_dir):
     """
     Download the artifacts associated with a Koji build.
 
     :param str/int build_identifier: the string of the builds NVR or the integer of the build ID
-    :param str output_dir: the path to download the the archives to
+    :param str output_dir: the path to download the archives to
     :return: a list of paths to the downloaded archives
-    :rtype: list
+    :rtype: tuple containing a list of downloaded artifacts and the build information
     """
     # Make sure the Koji command is installed
     _assert_command('koji')
@@ -84,7 +155,45 @@ def download_build(build_identifier, output_dir):
                 artifacts.append(file_path)
                 log.info(f'Downloaded {os.path.split(file_path)[-1]}')
 
-    return artifacts
+    return artifacts, build
+
+
+def download_source(build_info, output_dir):
+    """
+    Download the source (from dist-git) that was used in the specified build.
+
+    :param build_info: build information from koji.getBuild()
+    :param output_dir: the path to download the source to
+    """
+    # Make sure the git command is installed
+    _assert_command('git')
+
+    source_url = build_info.get('source')
+    if not source_url:
+        raise RuntimeError(f'Build {build_info["id"]} has no associated source URL.')
+
+    log.info(f'Downloading source for {build_info["id"]}')
+
+    url, _, commit_id = source_url.partition('#')
+    component = url.split('/')[-1]
+
+    cmd = ['git', 'clone', url]
+    process = subprocess.Popen(cmd, cwd=output_dir,
+                               stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+
+    _, error_output = process.communicate()
+    error_output = error_output.decode('utf-8')
+    if process.returncode != 0:
+        raise RuntimeError(f'The command "{" ".join(cmd)}" failed with: {error_output}')
+
+    cmd = ['git', 'reset', '--hard', commit_id]
+    process = subprocess.Popen(cmd, cwd=os.path.join(output_dir, component),
+                               stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+
+    _, error_output = process.communicate()
+    error_output = error_output.decode('utf-8')
+    if process.returncode != 0:
+        raise RuntimeError(f'The command "{" ".join(cmd)}" failed with: {error_output}')
 
 
 def _rpm_to_cpio(rpm_file):
