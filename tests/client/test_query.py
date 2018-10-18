@@ -451,3 +451,148 @@ def test_get_source_components_for_build():
     }
 
     assert query.get_source_components_for_build('4000') == expected
+
+
+def test_get_current_and_previous_versions():
+    """Test the get_current_and_previous_versions function."""
+    go = Component(
+        canonical_name='golang', canonical_type='generic', canonical_namespace='redhat').save()
+    next_sl = None
+    url = 'git://pkgs.domain.local/rpms/golang?#fed96461b05c0078e537c93a3fe974e8b334{version}'
+    for version in ('1.9.7', '1.9.6', '1.9.5', '1.9.4', '1.9.3'):
+        sl = SourceLocation(
+            url=url.format(version=version.replace('.', '')), canonical_version=version).save()
+        sl.component.connect(go)
+        if next_sl:
+            next_sl.previous_version.connect(sl)
+        next_sl = sl
+
+    rv = query.get_current_and_previous_versions('golang', 'generic', '1.9.6')
+    versions = set([result['canonical_version'] for result in rv])
+    assert versions == set(['1.9.6', '1.9.5', '1.9.4', '1.9.3'])
+
+
+def test_get_container_built_with_artifact():
+    """
+    Test the test_get_container_built_with_artifact function.
+
+    This test data creates a scenario where there are container builds with vulnerable golang
+    RPMs embedded, that are used during multi-stage builds. There is also a container with the
+    prometheus RPM embedded, but the prometheus RPM was built with a vulnerable version of the
+    golang RPMs.
+    """
+    expected = set()
+    api_input = []
+    queried_sl_versions = {'1.9.6', '1.9.5', '1.9.3'}
+    go = Component(
+        canonical_name='golang', canonical_type='generic', canonical_namespace='redhat').save()
+
+    artifact_counter = 0
+    build_counter = 0
+    next_sl = None
+    url = 'git://pkgs.domain.local/rpms/golang?#fed96461b05c0078e537c93a3fe974e8b334{version}'
+
+    for version in ('1.9.7', '1.9.6', '1.9.5', '1.9.4', '1.9.3'):
+        sl = SourceLocation(
+            url=url.format(version=version.replace('.', '')), canonical_version=version).save()
+        sl.component.connect(go)
+        if next_sl:
+            next_sl.previous_version.connect(sl)
+        if version in queried_sl_versions:
+            api_input.append({'url': sl.url})
+        go_build = Build(id_=build_counter, type_='rpm').save()
+        go_build.source_location.connect(sl)
+        build_counter += 1
+
+        go_src_rpm_artifact = Artifact(archive_id=artifact_counter, type_='rpm', architecture='src',
+                                       filename=f'golang-{version}-1.el7.src.rpm').save()
+        go_src_rpm_artifact.build.connect(go_build)
+        artifact_counter += 1
+
+        # Don't create container builds for version 1.9.3 because it'll be used by prometheus below
+        # to test another part of the query
+        if version != '1.9.3':
+            go_container_build = Build(id_=build_counter, type_='container').save()
+            build_counter += 1
+
+            content_container_build = Build(id_=build_counter, type_='container').save()
+            if version in queried_sl_versions:
+                # All the content containers are built with a container with a vulnerable golang
+                # RPM, but since we only query for certain source location versions of golang, only
+                # add those we are searching for.
+                expected.add(str(content_container_build.id_))
+            build_counter += 1
+
+        for noarch_rpm in ('docs', 'misc', 'src', 'tests'):
+            go_noarch_artifact = Artifact(
+                archive_id=artifact_counter, type_='rpm', architecture='noarch',
+                filename=f'golang-{noarch_rpm}-{version}-1.el7.noarch.rpm').save()
+            go_noarch_artifact.build.connect(go_build)
+            artifact_counter += 1
+
+        for arch in ('aarch64', 'x86_64', 'ppc64le', 's390x'):
+            go_artifact = Artifact(archive_id=artifact_counter, type_='rpm', architecture=arch,
+                                   filename=f'golang-{version}-1.el7.{arch}.rpm').save()
+            go_artifact.build.connect(go_build)
+            artifact_counter += 1
+            gobin_artifact = Artifact(archive_id=artifact_counter, type_='rpm', architecture=arch,
+                                      filename=f'golang-bin-{version}-1.el7.{arch}.rpm').save()
+            gobin_artifact.build.connect(go_build)
+            artifact_counter += 1
+
+            if version != '1.9.3':
+                go_container_build_artifact = Artifact(
+                    archive_id=artifact_counter, type_='container', architecture=arch).save()
+                go_container_build_artifact.build.connect(go_container_build)
+                go_container_build_artifact.embedded_artifacts.connect(go_artifact)
+                go_container_build_artifact.embedded_artifacts.connect(gobin_artifact)
+                artifact_counter += 1
+
+                content_container_artifact = Artifact(
+                    archive_id=artifact_counter, type_='container', architecture=arch).save()
+                content_container_artifact.build.connect(content_container_build)
+                content_container_artifact.buildroot_artifacts.connect(go_container_build_artifact)
+                artifact_counter += 1
+
+        next_sl = sl
+
+    prometheus = Component(
+        canonical_name='prometheus', canonical_type='generic', canonical_namespace='redhat').save()
+    prometheus_url = ('git://pkgs.domain.local/rpms/golang-github-prometheus-prometheus?#41d8a98364'
+                      'a9c631c7f663bbda8942cb2741df49')
+    prometheus_sl = SourceLocation(url=prometheus_url, canonical_version='2.1.0').save()
+    prometheus_sl.component.connect(prometheus)
+    prometheus_build = Build(id_=build_counter, type_='rpm').save()
+    prometheus_build.source_location.connect(prometheus_sl)
+    build_counter += 1
+    prometheus_src_rpm_artifact = Artifact(
+        archive_id=artifact_counter, type_='rpm', architecture='src',
+        filename='golang-github-prometheus-prometheus-2.2.1-1.gitbc6058c.el7.src.rpm').save()
+    prometheus_src_rpm_artifact.build.connect(go_build)
+    artifact_counter += 1
+    prometheus_container_build = Build(id_=build_counter, type_='container').save()
+    # This prometheus container will embed a prometheus RPM that was built with a vulnerable golang
+    # RPM, and 1.9.3 is part of the query
+    expected.add(str(prometheus_container_build.id_))
+    build_counter += 1
+
+    for arch in ('x86_64', 's390x', 'ppc64le'):
+        prometheus_artifact = Artifact(
+            archive_id=artifact_counter, type_='rpm', architecture=arch,
+            filename=f'prometheus-2.2.1-1.gitbc6058c.el7.{arch}.rpm').save()
+        prometheus_artifact.build.connect(prometheus_build)
+        # Set the 1.9.3 go artifacts to be buildroot artifacts
+        go_artifact = Artifact.nodes.get(filename=f'golang-1.9.3-1.el7.{arch}.rpm')
+        prometheus_artifact.buildroot_artifacts.connect(go_artifact)
+        gobin_artifact = Artifact.nodes.get(filename=f'golang-bin-1.9.3-1.el7.{arch}.rpm')
+        prometheus_artifact.buildroot_artifacts.connect(gobin_artifact)
+        artifact_counter += 1
+        prometheus_container_artifact = Artifact(
+            archive_id=artifact_counter, type_='container', architecture=arch).save()
+        prometheus_container_artifact.build.connect(prometheus_container_build)
+        prometheus_container_artifact.embedded_artifacts.connect(prometheus_artifact)
+        artifact_counter += 1
+
+    rv = query.get_container_built_with_sources(api_input)
+
+    assert set(rv) == expected
