@@ -15,54 +15,39 @@ def set_connection(neo4j_url):  # pragma: no cover
     neomodel.db.set_connection(neo4j_url)
 
 
-def get_container_by_component(component_name, component_version):
+def get_container_by_component(name, type_, version):
     """Query for builds by component name and version.
 
     Finds builds that produced container images which include or embed a component with the
-    specified name and version, and any version preceding that version.
+    specified name, type, and version.
 
-    :param str component_name: name of the component to query for
-    :param str component_version: version of the component to query for
+    :param str name: the canonical name of the component
+    :param str type_: the canonical type of the component
+    :param str version: the canonical version of the component
     :return: list of builds IDs
     :rtype: list
     """
     query = """
-        // Find a component and a sourcelocation with the specified name and version. These can
-        // be emdedded in other sourcelocation that are used as a source for a build or directly
+        // Find a component and a sourcelocation with the specified name, type and version. These
+        // can be emdedded in other sourcelocation that are used as a source for a build or directly
         // used for a build.
-        MATCH (c:Component {{canonical_name: '{name}'}}) <-[:SOURCE_FOR]-
+        MATCH (c:Component {{canonical_name: '{name}', canonical_type: '{type}'}}) <-[:SOURCE_FOR]-
               (version_sl:SourceLocation {{canonical_version: '{version}'}})
               <-[:UPSTREAM|EMBEDS*0..]- (target_sl:SourceLocation)
-              <-[:BUILT_FROM]- (direct_builds:Build)
-
-        // Also, find all sourcelocation that precede the one with the specified version.
-        OPTIONAL MATCH (version_sl) -[:SUPERSEDES*]-> (:SourceLocation) <-[:UPSTREAM|EMBEDS*0..]-
-                       (older_target_sl:SourceLocation) <-[:BUILT_FROM]- (older_builds:Build)
-
-        // Concatenate all found builds.
-        // Note: we have to pass everything that we want to eventually use later in this WITH
-        // statement otherwise it won't be available later on in the query.
-        WITH COLLECT(direct_builds) + COLLECT(older_builds) AS builds, target_sl, older_target_sl
-
-        // Concatenate all found sourcelocations.
-        WITH COLLECT(target_sl) + COLLECT(older_target_sl) AS sls, builds
-
-        // Expand lists into rows so we can match on them.
-        UNWIND builds as all_builds
-        UNWIND sls as all_sls
+              <-[:BUILT_FROM]- (build:Build)
 
         // Find all container builds that embed an artifact produced by any of the previously
         // matched builds.
-        OPTIONAL MATCH (all_builds) -[:PRODUCED]-> (:Artifact) <-[:EMBEDS*0..]-
+        OPTIONAL MATCH (build) -[:PRODUCED]-> (:Artifact) <-[:EMBEDS*0..]-
                        (:Artifact) <-[:PRODUCED]- (container_build:Build {{type: 'container'}})
 
         // Find all container builds that are directly built from any of the previously matched
         // sourcelocations.
-        OPTIONAL MATCH (all_sls) <-[:BUILT_FROM]- (cf_build:Build {{type: 'container'}})
+        OPTIONAL MATCH (target_sl) <-[:BUILT_FROM]- (cf_build:Build {{type: 'container'}})
 
         // Return both types of builds.
         RETURN container_build, cf_build
-    """.format(name=component_name, version=component_version)
+    """.format(name=name, type=type_, version=version)
 
     results, _ = neomodel.db.cypher_query(query)
 
@@ -70,7 +55,7 @@ def get_container_by_component(component_name, component_version):
     for result in results:
         for node in result:
             if node:
-                build_ids.add(node['id'])
+                build_ids.add(int(node['id']))
 
     return build_ids
 
