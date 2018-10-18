@@ -1,10 +1,13 @@
 # SPDX-License-Identifier: GPL-3.0+
 
+import random
+
 import mock
 import pytest
 
 from assayist.processor import base, main_analyzer
 from assayist.common.models.content import Artifact, Build
+from assayist.common.models.source import Component
 
 # RPM INFO BLOBS
 VIM_1_2_3 = {'buildroot_id': '1',
@@ -261,22 +264,124 @@ def test_create_or_update_maven_archive_artifact_from_artifact_info():
 
 def test_create_or_update_source_location():
     """Test the basic function of the create_or_update_source_location function."""
+    rpm_comp = Component.get_or_create({
+        'canonical_namespace': 'a',
+        'canonical_name': 'test',
+        'canonical_type': 'rpm'})[0]
+    rpm_comp.save()
     analyzer = main_analyzer.MainAnalyzer()
     url = 'www.whatever.com'
-    canonical_version = 'pi'
+    canonical_version = '0-1-2'
     sl = analyzer.create_or_update_source_location(
         url=url,
+        component=rpm_comp,
         canonical_version=canonical_version)
 
     assert sl.url == url
     assert sl.canonical_version == sl.canonical_version
+    assert sl.type_ == 'upstream'
+    assert rpm_comp in sl.component
     sl.id  # exists, hence is saved
 
     # 're-creating' should just return existing node
     sl2 = analyzer.create_or_update_source_location(
         url=url,
+        component=rpm_comp,
         canonical_version=canonical_version)
     assert sl.id == sl2.id
+
+
+def test_supersedes_order_rpm():
+    """Test that RPM SourceLocations are associated in the correct order."""
+    rpm_comp = Component.get_or_create({
+        'canonical_namespace': 'another',
+        'canonical_name': 'test',
+        'canonical_type': 'rpm'})[0]
+    rpm_comp.save()
+
+    URL_BASE = 'www.example.com/some/package#'
+    analyzer = main_analyzer.MainAnalyzer()
+
+    def get_sl(version):
+        return analyzer.create_or_update_source_location(
+            url=URL_BASE + str(random.randint(0, 10000)),
+            component=rpm_comp,
+            canonical_version=version)
+
+    # named for what order they should come in, created in a random order
+    fourth = get_sl('1-1.1-1.el7')
+    fifth = get_sl('1-1.1a-1.el7')
+    third = get_sl('0-3-1.el7')
+    first = get_sl('0-2-2.el7')
+    second = get_sl('0-2.1-1.el7')
+
+    assert first.previous_version.single() is None
+    assert second == first.next_version.single()
+    assert third == second.next_version.single()
+    assert fifth == fourth.next_version.single()
+    assert fifth.next_version.single() is None
+
+
+def test_supersedes_order_maven():
+    """Test that Maven SourceLocations are associated in the correct order."""
+    rpm_comp = Component.get_or_create({
+        'canonical_namespace': 'a',
+        'canonical_name': 'test',
+        'canonical_type': 'java'})[0]
+    rpm_comp.save()
+
+    URL_BASE = 'www.example.com/some/package#'
+    analyzer = main_analyzer.MainAnalyzer()
+
+    def get_sl(version):
+        return analyzer.create_or_update_source_location(
+            url=URL_BASE + str(random.randint(0, 10000)),
+            component=rpm_comp,
+            canonical_version=version)
+
+    # named for what order they should come in, created in a random order
+    fourth = get_sl('7.1.0.fuse-710017-redhat-00002')
+    fifth = get_sl('7.1.0.fuse-710018-redhat-00001')
+    third = get_sl('7.1.0.fuse-710017-redhat-00001')
+    first = get_sl('6.2.1.redhat-222')
+    second = get_sl('6.3.0.redhat-356')
+
+    assert first.previous_version.single() is None
+    assert second == first.next_version.single()
+    assert third == second.next_version.single()
+    assert fifth == fourth.next_version.single()
+    assert fifth.next_version.single() is None
+
+
+def test_supersedes_order_container():
+    """Test that conatiner SourceLocations are associated in the correct order."""
+    rpm_comp = Component.get_or_create({
+        'canonical_namespace': 'a',
+        'canonical_name': 'test',
+        'canonical_type': 'docker'})[0]
+    rpm_comp.save()
+
+    URL_BASE = 'www.example.com/some/package#'
+    analyzer = main_analyzer.MainAnalyzer()
+
+    def get_sl(version):
+        return analyzer.create_or_update_source_location(
+            url=URL_BASE + str(random.randint(0, 10000)),
+            component=rpm_comp,
+            canonical_version=version)
+
+    # named for what order they should come in, created in a random order
+    fourth = get_sl('v4.0.0-0.27.0.0')
+    fifth = get_sl('v4.0.0-0.27.0.1')
+    third = get_sl('v3.11.45-7')
+    first = get_sl('v3.10.16-4')
+    second = get_sl('v3.10.45-7')
+
+    assert first.previous_version.single() is None
+    assert second == first.next_version.single()
+    assert third == second.next_version.single()
+    assert fifth == fourth.next_version.single()
+    assert fifth.next_version.single() is None
 
 
 def good_run(self):
@@ -322,7 +427,7 @@ def test__construct_and_save_component():
         'version': '123',
         'release': '4.el7'}
     component, version = analyzer._construct_and_save_component(btype, binfo)
-    assert version == '123-4.el7'
+    assert version == '0-123-4.el7'
     assert component.canonical_namespace == 'redhat'
     assert component.canonical_name == 'kernel'
     assert component.canonical_type == 'rpm'

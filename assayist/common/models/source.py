@@ -35,8 +35,16 @@ class SourceLocation(AssayistStructuredNode):
     See https://github.com/package-url/purl-spec for information on what makes something canonical.
     """
 
+    TYPES = {
+        'local': 'local',
+        'upstream': 'upstream',
+        '': '',
+    }
+
     canonical_version = StringProperty()
     url = StringProperty(required=True, unique_index=True)
+    # A one-word description of the type of repo this describes (to aid in filtering).
+    type_ = StringProperty(required=True, db_property='type', choices=TYPES)
 
     # The artifacts this source location is embedded in
     artifacts_embedded_in = RelationshipFrom('.content.Artifact', 'EMBEDS')

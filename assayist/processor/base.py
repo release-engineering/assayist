@@ -1,14 +1,50 @@
 # SPDX-License-Identifier: GPL-3.0+
 
 from abc import ABC, abstractmethod
+from functools import cmp_to_key
 import json
 import os
 
-import neomodel
+from neomodel import db, ZeroOrOne, One
+from pkg_resources import parse_version
+import rpm
 
 from assayist.common.models import content, source
 from assayist.processor.configuration import config
 from assayist.processor.logging import log
+
+
+def rpm_compare(x, y):
+    """
+    Compare two rpm canonical_versions.
+
+    :param SourceLocation x: The first SourceLocation to compare
+    :param SourceLocation y: The second SourceLocation to compare
+    :return: -1, 0, or 1 as required by standard comparison methods.
+    :rtype: int
+    """
+    # By definition, see _construct_and_save_component.
+    x_values = x.canonical_version.split('-')
+    y_values = y.canonical_version.split('-')
+    # If we're evaluating a container then fake out a zero EPOCH.
+    if len(x_values) == 2:
+        x_values = ['0'] + x_values
+        y_values = ['0'] + y_values
+    return rpm.labelCompare(x_values, y_values)
+
+
+rpm_key = cmp_to_key(rpm_compare)
+
+
+def generic_key(x):
+    """
+    Evaluate to a comparable generic version.
+
+    :param str x: The version in question
+    :return: Some type of comparable object
+    :rtype: Object
+    """
+    return parse_version(x.canonical_version)
 
 
 class Analyzer(ABC):
@@ -23,25 +59,25 @@ class Analyzer(ABC):
     BUILDROOT_FILE = 'buildroot-components.json'
 
     def __init__(self, input_dir='/metadata'):
-        """Initialize the Analyzer class."""
-        self.input_dir = input_dir
-
-    def main(self):
         """
-        Call this to run the analyzer.
+        Initialize the Analyzer class.
 
         :param str input_dir: The directory in which to find the files.
         """
-        neomodel.db.set_connection(config.DATABASE_URL)
+        self.input_dir = input_dir
+
+    def main(self):
+        """Call this to run the analyzer."""
+        db.set_connection(config.DATABASE_URL)
         # run the analyzer in a transaction
-        neomodel.db.begin()
+        db.begin()
         try:
             self.run()
             log.debug('Analyzer completed successfully, committing.')
-            neomodel.db.commit()
-        except Exception as e:
+            db.commit()
+        except Exception:
             log.exception('Error encountered executing Analyzer, rolling back transaction.')
-            neomodel.db.rollback()
+            db.rollback()
             raise
 
     @abstractmethod
@@ -163,19 +199,62 @@ class Analyzer(ABC):
             _type = 'other'
         return self.__create_or_update_artifact(archive_id, _type, arch, filename, checksum)
 
-    def create_or_update_source_location(self, url, canonical_version):
+    def create_or_update_source_location(self, url, component, canonical_version=None):
         """
         Create or update SourceLocation.
 
+        Connect it to the component provided.
+        If canonical_version is provided link it with similar SourceLocations via SUPERSEDES.
+
         :param str url: the url and possibly commit hash of the source location
+        :param Component component: the component associated with this SourceLocation
         :param str canonical_version: (optional) the version of the component that
                                       corresponds with this commit id
         :return: a SourceLocation object
         :rtype: assayist.common.models.source.SourceLocation
         """
-        sl = source.SourceLocation.create_or_update({'url': url})[0]
+        # Figure out what type of SourceLocation we're dealing with.
+        sl_type = ''
+        if canonical_version:
+            # TODO: A better determination?
+            if '.redhat.com/' in url:
+                sl_type = 'local'
+            else:
+                sl_type = 'upstream'
+
+        # Get it.
+        sl = source.SourceLocation.create_or_update({
+            'url': url,
+            'type_': sl_type})[0]
+
         if canonical_version:
             sl.canonical_version = canonical_version
+
+            # Find all SLs related to this component of the same type.
+            # There is a match() function, but it only works if the relationship has a model.
+            similar_source_locations = component.source_locations.filter(
+                type_=sl_type, canonical_version__isnull=False).all()
+
+            # Find our place in the chain, which may be beginning, middle, or end.
+            # Note that I'm assuming that these are all in the chain. Which they should be.
+            similar_source_locations.append(sl)
+            if component.canonical_type in ('rpm', 'docker'):
+                # Containers use the version-release system from brew,
+                # so they need to be evaluated rpmishly too.
+                key_method = rpm_key
+            else:
+                key_method = generic_key
+            similar_source_locations.sort(key=key_method)
+
+            # Insert this SourceLocation in the appropriate place in the graph.
+            index = similar_source_locations.index(sl)
+            if index > 0:
+                self.conditional_connect(similar_source_locations[index - 1].next_version, sl)
+            if (index + 1) < len(similar_source_locations):
+                self.conditional_connect(similar_source_locations[index + 1].previous_version, sl)
+
+        # Finally connect to the component, save, and return.
+        self.conditional_connect(sl.component, component)
         return sl.save()
 
     def claim_container_file(self, container_archive, path_in_container):
@@ -223,3 +302,28 @@ class Analyzer(ABC):
             return False
         else:
             return True
+
+    @staticmethod
+    def conditional_connect(relationship, new_node):
+        """
+        Wrap the connect and replace methods for conditional relationship handling.
+
+        "Borrowed" from https://github.com/release-engineering/estuary-api
+        /blob/master/estuary/models/base.py#L152
+
+        :param neomodel.RelationshipManager relationship: a relationship to connect on
+        :param neomodel.StructuredNode new_node: the node to create the relationship with
+        :raises NotImplementedError: if this method is called with a relationship of cardinality of
+        one
+        """
+        if new_node not in relationship:
+            if len(relationship) == 0:
+                relationship.connect(new_node)
+            else:
+                if isinstance(relationship, ZeroOrOne):
+                    relationship.replace(new_node)
+                elif isinstance(relationship, One):
+                    raise NotImplementedError(
+                        'conditional_connect doesn\'t support cardinality of one')
+                else:
+                    relationship.connect(new_node)

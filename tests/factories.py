@@ -248,6 +248,7 @@ class SourceLocationFactory(ModelFactory):
         data = {
             'canonical_version': version,
             'url': choice(urls),
+            'type_': 'local',
         }
 
         data.update(values)
@@ -329,6 +330,7 @@ class UseCaseFactory:
         container_sl = SourceLocationFactory.create(
             url=ModelFactory.generate_internal_git_url(name, 'containers'),
             canonical_version=None,
+            type_='local',
         )
         container_build.source_location.connect(container_sl)
 
@@ -359,13 +361,15 @@ class UseCaseFactory:
 
         if upstream_url:
             rpm_upstream_sl = SourceLocationFactory.create(url=upstream_url,
-                                                           canonical_version=version)
+                                                           canonical_version=version,
+                                                           type_='upstream')
         else:
             rpm_upstream_sl = None
 
         rpm_internal_sl = SourceLocationFactory.create(
-            url=ModelFactory.generate_internal_git_url(name, 'rpm'), canonical_version=version
-        )
+            url=ModelFactory.generate_internal_git_url(name, 'rpm'),
+            canonical_version=version,
+            type_='local')
 
         rpm_build = BuildFactory.create(type_='rpm')
         rpm_artifact = ArtifactFactory.create(
@@ -408,13 +412,13 @@ class UseCaseFactory:
         maven_internal_sl = SourceLocationFactory.create(
             url=ModelFactory.generate_internal_git_url(maven_component.canonical_name, 'maven'),
             canonical_version=version,
-        )
+            type_='local')
 
         if upstream_url:
             maven_upstream_sl = SourceLocationFactory.create(
                 url=upstream_url,
                 canonical_version=maven_internal_sl.canonical_version,
-            )
+                type_='upstream')
         else:
             maven_upstream_sl = None
 
@@ -569,7 +573,7 @@ class UseCaseFactory:
         )
 
         for name, url, version in go_sources:
-            sl = SourceLocationFactory.create(url=url, canonical_version=version)
+            sl = SourceLocationFactory.create(url=url, canonical_version=version, type_='local')
             sl.component.connect(ComponentFactory.create(name=name))
             if 'configmap-reload' in url:
                 container_sl.upstream.connect(sl)

@@ -187,7 +187,9 @@ def test_get_current_and_previous_versions():
     url = 'git://pkgs.domain.local/rpms/golang?#fed96461b05c0078e537c93a3fe974e8b334{version}'
     for version in ('1.9.7', '1.9.6', '1.9.5', '1.9.4', '1.9.3'):
         sl = SourceLocation(
-            url=url.format(version=version.replace('.', '')), canonical_version=version).save()
+            url=url.format(version=version.replace('.', '')),
+            canonical_version=version,
+            type_='local').save()
         sl.component.connect(go)
         if next_sl:
             next_sl.previous_version.connect(sl)
@@ -220,7 +222,9 @@ def test_get_container_built_with_artifact():
 
     for version in ('1.9.7', '1.9.6', '1.9.5', '1.9.4', '1.9.3'):
         sl = SourceLocation(
-            url=url.format(version=version.replace('.', '')), canonical_version=version).save()
+            url=url.format(version=version.replace('.', '')),
+            canonical_version=version,
+            type_='local').save()
         sl.component.connect(go)
         if next_sl:
             next_sl.previous_version.connect(sl)
@@ -286,7 +290,10 @@ def test_get_container_built_with_artifact():
         canonical_name='prometheus', canonical_type='generic', canonical_namespace='redhat').save()
     prometheus_url = ('git://pkgs.domain.local/rpms/golang-github-prometheus-prometheus?#41d8a98364'
                       'a9c631c7f663bbda8942cb2741df49')
-    prometheus_sl = SourceLocation(url=prometheus_url, canonical_version='2.1.0').save()
+    prometheus_sl = SourceLocation(
+        url=prometheus_url,
+        canonical_version='2.1.0',
+        type_='local').save()
     prometheus_sl.component.connect(prometheus)
     prometheus_build = Build(id_=build_counter, type_='rpm').save()
     prometheus_build.source_location.connect(prometheus_sl)
