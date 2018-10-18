@@ -36,7 +36,7 @@ def get_container_by_component(name, type_, version):
         // used for a build.
         MATCH (c:Component {{canonical_name: '{name}', canonical_type: '{type}'}}) <-[:SOURCE_FOR]-
               (version_sl:SourceLocation {{canonical_version: '{version}'}})
-              <-[:UPSTREAM|EMBEDS*0..]- (target_sl:SourceLocation)
+              <-[:UPSTREAM*0..]-(:SourceLocation)<-[:EMBEDS*0..]-(target_sl:SourceLocation)
               <-[:BUILT_FROM]- (build:Build)
 
         // Find all container builds that embed an artifact produced by any of the previously
