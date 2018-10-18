@@ -111,8 +111,8 @@ def download_build(build_identifier, output_dir):
 
     :param str/int build_identifier: the string of the builds NVR or the integer of the build ID
     :param str output_dir: the path to download the archives to
-    :return: a list of paths to the downloaded archives
-    :rtype: tuple containing a list of downloaded artifacts and the build information
+    :return: tuple containing a list of downloaded artifacts and the build information
+    :rtype: (list, dict)
     """
     # Make sure the Koji command is installed
     _assert_command('koji')
