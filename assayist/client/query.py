@@ -69,7 +69,7 @@ def get_container_content_sources(build_id):
 
     :param int build_id: the Koji build's ID
     :return: a list of source URLs
-    :rtype: list
+    :rtype: dict
     """
     build = Build.nodes.get_or_none(id_=str(build_id))
     if not build:
