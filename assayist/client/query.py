@@ -9,13 +9,58 @@ from assayist.common.models.source import Component, SourceLocation
 from assayist.client.error import NotFound, InvalidInput
 
 
-def set_connection(neo4j_url):
+def set_connection(neo4j_url):  # pragma: no cover
     """
     Set the Neo4j connection string.
 
     :param str neo4j_url: the Neo4j connection string to configure neomodel with
     """
     neomodel.db.set_connection(neo4j_url)
+
+
+def get_container_by_component(name, type_, version):
+    """Query for builds by component name and version.
+
+    Finds builds that produced container images which include or embed a component with the
+    specified name, type, and version.
+
+    :param str name: the canonical name of the component
+    :param str type_: the canonical type of the component
+    :param str version: the canonical version of the component
+    :return: list of builds IDs
+    :rtype: list
+    """
+    query = """
+        // Find a component and a sourcelocation with the specified name, type and version. These
+        // can be emdedded in other sourcelocation that are used as a source for a build or directly
+        // used for a build.
+        MATCH (c:Component {{canonical_name: '{name}', canonical_type: '{type}'}}) <-[:SOURCE_FOR]-
+              (version_sl:SourceLocation {{canonical_version: '{version}'}})
+              <-[:UPSTREAM*0..]-(:SourceLocation)<-[:EMBEDS*0..]-(target_sl:SourceLocation)
+              <-[:BUILT_FROM]- (build:Build)
+
+        // Find all container builds that embed an artifact produced by any of the previously
+        // matched builds.
+        OPTIONAL MATCH (build) -[:PRODUCED]-> (:Artifact) <-[:EMBEDS*0..]-
+                       (:Artifact) <-[:PRODUCED]- (container_build:Build {{type: 'container'}})
+
+        // Find all container builds that are directly built from any of the previously matched
+        // sourcelocations.
+        OPTIONAL MATCH (target_sl) <-[:BUILT_FROM]- (cf_build:Build {{type: 'container'}})
+
+        // Return both types of builds.
+        RETURN container_build, cf_build
+    """.format(name=name, type=type_, version=version)
+
+    results, _ = neomodel.db.cypher_query(query)
+
+    build_ids = set()
+    for result in results:
+        for node in result:
+            if node:
+                build_ids.add(int(node['id']))
+
+    return build_ids
 
 
 def get_container_content_sources(build_id):
