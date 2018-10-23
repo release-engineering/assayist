@@ -22,13 +22,16 @@ class Analyzer(ABC):
     IMAGE_RPM_FILE = 'image-rpms.json'
     BUILDROOT_FILE = 'buildroot-components.json'
 
-    def main(self, input_dir='/metadata'):
+    def __init__(self, input_dir='/metadata'):
+        """Initialize the Analyzer class."""
+        self.input_dir = input_dir
+
+    def main(self):
         """
         Call this to run the analyzer.
 
         :param str input_dir: The directory in which to find the files.
         """
-        self.input_dir = input_dir
         neomodel.db.set_connection(config.DATABASE_URL)
         # run the analyzer in a transaction
         neomodel.db.begin()
