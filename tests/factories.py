@@ -261,7 +261,7 @@ class ComponentFactory(ModelFactory):
     COMPONENTS = {
         'requests': ('', 'requests', 'pypi', ['python3-requests', 'python-requests']),
         'configmap-reload': ('github.com/jimmidyson', 'configmap-reload', 'golang', []),
-        'fsnotify': ('gopkg.in', 'fsnotify', 'golang', []),
+        'fsnotify.v1': ('gopkg.in', 'fsnotify.v1', 'golang', []),
         'sys': ('golang.org/x', 'sys', 'golang', []),
         'commonjava': ('', 'org.commonjava:commonjava-parent', 'maven', []),
         'etcd': ('github.com/coreos', 'etcd', 'golang', []),
@@ -358,12 +358,13 @@ class UseCaseFactory:
             rpm_component = None
 
         if upstream_url:
-            rpm_upstream_sl = SourceLocationFactory.create(url=upstream_url, version=version)
+            rpm_upstream_sl = SourceLocationFactory.create(url=upstream_url,
+                                                           canonical_version=version)
         else:
             rpm_upstream_sl = None
 
         rpm_internal_sl = SourceLocationFactory.create(
-            url=ModelFactory.generate_internal_git_url(name, 'rpm'),
+            url=ModelFactory.generate_internal_git_url(name, 'rpm'), canonical_version=version
         )
 
         rpm_build = BuildFactory.create(type_='rpm')
@@ -393,7 +394,7 @@ class UseCaseFactory:
         return rpm_build, rpm_artifact, rpm_component, rpm_upstream_sl, rpm_internal_sl
 
     @classmethod
-    def _maven_build(cls, g_id, a_id, upstream_url=None):
+    def _maven_build(cls, g_id, a_id, version=None, upstream_url=None):
         """Create a set of Maven models.
 
         :param g_id: Maven group ID
@@ -406,12 +407,13 @@ class UseCaseFactory:
 
         maven_internal_sl = SourceLocationFactory.create(
             url=ModelFactory.generate_internal_git_url(maven_component.canonical_name, 'maven'),
+            canonical_version=version,
         )
 
         if upstream_url:
             maven_upstream_sl = SourceLocationFactory.create(
                 url=upstream_url,
-                version=maven_internal_sl.canonical_version,
+                canonical_version=maven_internal_sl.canonical_version,
             )
         else:
             maven_upstream_sl = None
@@ -514,7 +516,8 @@ class UseCaseFactory:
         """
         lightblue_artifact = cls._maven_build(
             g_id='com.redhat.lightblue.client', a_id='lightblue-client-core',
-            upstream_url='http://www.lightblue.org/dl/lightblue.jar'
+            version='10.0.1',
+            upstream_url='http://www.lightblue.org/dl/lightblue.jar',
         )
 
         fuse_artifact = cls._maven_build(
@@ -523,8 +526,10 @@ class UseCaseFactory:
         fuse_artifact.embedded_artifacts.connect(lightblue_artifact)
         fuse_artifact
 
-        _, _, _, eap_container = cls._container_build('jboss-eap-7-eap71')
+        _, _, container_build, eap_container = cls._container_build('jboss-eap-7-eap71')
         eap_container.embedded_artifacts.connect(fuse_artifact)
+
+        return int(container_build.id_)
 
     @classmethod
     def container_with_go_and_rpm_artifacts(cls):
@@ -547,10 +552,11 @@ class UseCaseFactory:
 
         cls._rpm_build('etcd', '3.2.20')  # unused RPM build
 
-        _, _, _, parent_container = cls._container_build('openshift-enterprise-base-container')
+        _, _, parent_container_build, parent_container = cls._container_build(
+            'openshift-enterprise-base-container')
         parent_container.embedded_artifacts.connect(bash_rpm)
 
-        _, container_sl, _, container = cls._container_build(
+        _, container_sl, container_build, container = cls._container_build(
             'atomic-openshift-metrics-server-container',
         )
         container.embedded_artifacts.connect(parent_container)
@@ -558,7 +564,7 @@ class UseCaseFactory:
 
         go_sources = (
             ('configmap-reload', 'https://github.com/jimmidyson/configmap-reload', 'v0.2.2'),
-            ('fsnotify', 'https://gopkg.in/fsnotify.v1', 'v1.4.7'),
+            ('fsnotify.v1', 'https://gopkg.in/fsnotify.v1', 'v1.4.7'),
             ('sys', 'https://go.googlesource.com/sys', 'v0.0.0-0.20150901164945-9c60d1c508f5'),
         )
 
@@ -569,3 +575,5 @@ class UseCaseFactory:
                 container_sl.upstream.connect(sl)
             else:
                 container_sl.embedded_source_locations.connect(sl)
+
+        return int(parent_container_build.id_), int(container_build.id_)
