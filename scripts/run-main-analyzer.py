@@ -16,4 +16,4 @@ input_dir = args.input_dir or '.'
 
 input_dir = os.path.join(input_dir, 'metadata')
 
-MainAnalyzer().main(input_dir)
+MainAnalyzer(input_dir).main()

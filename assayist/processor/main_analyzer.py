@@ -119,7 +119,6 @@ class MainAnalyzer(Analyzer):
 
         # record the artifacts
         archives_info = self.read_metadata_file(self.ARCHIVE_FILE)
-        images_rpm_info = self.read_metadata_file(self.IMAGE_RPM_FILE)
         for archive_info in archives_info:
             if archive_info['type'] == 'log':
                 # No one cares about logs
@@ -143,11 +142,5 @@ class MainAnalyzer(Analyzer):
                 aid, filename, arch, atype, checksum)
             archive.build.connect(build)
             self._map_buildroot_to_artifact(buildroot_id, archive)
-
-            if aid in images_rpm_info:
-                # It's an image and we know it contains some rpms. Save them.
-                for rpm_info in images_rpm_info[aid]:
-                    rpm = self.create_or_update_rpm_artifact_from_rpm_info(rpm_info)
-                    archive.embedded_artifacts.connect(rpm)
 
         self._read_and_save_buildroots()

@@ -404,15 +404,6 @@ def test_run():
     assert source.component[0].canonical_name == 'virt-api-container'
     assert source.component[0].canonical_type == 'docker'
 
-    # assert the embedded artifacts are linked (rpms contained inside an image)
-    image1 = Artifact.nodes.get(filename=IMAGE1['filename'])
-    image2 = Artifact.nodes.get(filename=IMAGE2['filename'])
-    assert len(image1.embedded_artifacts) == 1
-    assert image1.embedded_artifacts[0].checksums[0].checksum == NETWORKMANAGER_5_6_7_X86[
-        'payloadhash']
-    assert len(image2.embedded_artifacts) == 1
-    assert image2.embedded_artifacts[0].checksums[0].checksum == NETWORKMANAGER_5_6_7_PPC[
-        'payloadhash']
     assert len(vim.embedded_artifacts) == 0
     assert len(ssh.embedded_artifacts) == 0
     assert len(jar.embedded_artifacts) == 0

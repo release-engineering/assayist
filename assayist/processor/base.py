@@ -22,13 +22,16 @@ class Analyzer(ABC):
     IMAGE_RPM_FILE = 'image-rpms.json'
     BUILDROOT_FILE = 'buildroot-components.json'
 
-    def main(self, input_dir='/metadata'):
+    def __init__(self, input_dir='/metadata'):
+        """Initialize the Analyzer class."""
+        self.input_dir = input_dir
+
+    def main(self):
         """
         Call this to run the analyzer.
 
         :param str input_dir: The directory in which to find the files.
         """
-        self.input_dir = input_dir
         neomodel.db.set_connection(config.DATABASE_URL)
         # run the analyzer in a transaction
         neomodel.db.begin()
@@ -150,3 +153,49 @@ class Analyzer(ABC):
         if canonical_version:
             sl.canonical_version = canonical_version
         return sl.save()
+
+    def claim_container_file(self, container_archive, path_in_container):
+        """
+        Claim (delete) a file in the extracted container.
+
+        This method is used by analyzers to claim a file they've identified. All directories are
+        silently ignored.
+
+        :param str container_archive: the container archive to claim the file from
+        :param str path_in_container: the path to the file or directory in the container to claim
+        :raises RuntimeError: when path_in_container is the root directory or the path to the
+            extracted container layer is not a directory
+        """
+        if path_in_container == '/':
+            raise RuntimeError('You cannot claim the root directory of a container')
+
+        file_path = path_in_container.lstrip('/')
+
+        container_layer_dir = os.path.join(
+            self.input_dir, 'unpacked_archives', 'container_layer', container_archive['filename'])
+        if not os.path.isdir(container_layer_dir):
+            raise RuntimeError(f'The path "{container_layer_dir}" is not a directory')
+
+        path_in_container = os.path.join(container_layer_dir, file_path)
+        if os.path.isdir(path_in_container):
+            log.debug(f'Ignoring "{path_in_container}" since directories don\'t get claimed')
+        elif os.path.isfile(path_in_container):
+            log.debug(f'Claiming file "{path_in_container}"')
+            os.remove(path_in_container)
+
+    @staticmethod
+    def is_container_build(build_info):
+        """
+        Perform a heuristic evaluation to determine if this is a container build.
+
+        :param dict build_info: the Koji build info to examine
+        :returns: a boolean determining if the build is a container
+        :rtype: bool
+        """
+        # Protect against the value being `None` or something else unexpected
+        if not isinstance(build_info['extra'], dict):
+            return False
+        elif not build_info['extra'].get('container_koji_task_id'):
+            return False
+        else:
+            return True

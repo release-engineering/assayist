@@ -9,7 +9,6 @@ import zipfile
 
 import koji
 
-from assayist.processor.base import Analyzer
 from assayist.processor.configuration import config
 from assayist.processor.logging import log
 
@@ -54,6 +53,8 @@ def download_build_data(build_identifier, output_dir='/metadata'):
     :param str/int build_identifier: the string of the builds NVR or the integer of the build ID
     :param str output_dir: the path to download the brew info to
     """
+    # Import this here to avoid a circular import
+    from assayist.processor.base import Analyzer
     # Make sure the Koji command is installed
     _assert_command('koji')
     koji = get_koji_session()
