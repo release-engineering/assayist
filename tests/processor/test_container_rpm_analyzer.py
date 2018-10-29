@@ -155,14 +155,18 @@ def test_run_parent_image(mock_p_e_rpms, mock_get_diff, mock_get_session, mock_r
                 'filename': 'docker-image-sha256-63456789abcdef2',
                 'btype': 'image',
             }
-        ]
+        ],
+        {
+            3: [{'id': 111, 'name': 'kernel'}],
+            4: [{'id': 222, 'name': 'kernel'}],
+        },
     ]
 
     analyzer = ContainerRPMAnalyzer()
     analyzer.run()
-    # Make sure read_metadata_file was called twice, once for the build info and the other for the
-    # archives
-    assert mock_read_md_file.call_count == 2
+    # Make sure read_metadata_file was called three times, once for the build info, once for the
+    # archives, and once for the image rpms.
+    assert mock_read_md_file.call_count == 3
     # Make sure _process_embedded_rpms was called twice, once for each arch
     assert mock_p_e_rpms.call_count == 2
     # Make sure listArchives was not called since that information is cached for the current layer
