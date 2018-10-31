@@ -15,7 +15,7 @@ class Component(AssayistStructuredNode):
     See https://github.com/package-url/purl-spec for information on what makes something canonical.
     """
 
-    canonical_namespace = StringProperty(required=True)
+    canonical_namespace = StringProperty()
     canonical_name = StringProperty(required=True, index=True)
     canonical_type = StringProperty(required=True, index=True)
     alternative_names = ArrayProperty(index=True)

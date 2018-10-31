@@ -257,31 +257,30 @@ class SourceLocationFactory(ModelFactory):
 class ComponentFactory(ModelFactory):
     """Factory class for Component model instances."""
 
-    # TODO: why is canonical-namespace required?
     COMPONENTS = {
-        'requests': ('', 'requests', 'pypi', ['python3-requests', 'python-requests']),
+        'requests': (None, 'requests', 'pypi', ['python3-requests', 'python-requests']),
         'configmap-reload': ('github.com/jimmidyson', 'configmap-reload', 'golang', []),
         'fsnotify.v1': ('gopkg.in', 'fsnotify.v1', 'golang', []),
         'sys': ('golang.org/x', 'sys', 'golang', []),
-        'commonjava': ('', 'org.commonjava:commonjava-parent', 'maven', []),
+        'commonjava': (None, 'org.commonjava:commonjava-parent', 'maven', []),
         'etcd': ('github.com/coreos', 'etcd', 'golang', []),
-        'bash': ('', 'bash', 'generic', []),
-        'yum-utils': ('', 'yum-utils', 'generic', []),
-        'rsyslog': ('', 'rsyslog', 'generic', []),
+        'bash': (None, 'bash', 'generic', []),
+        'yum-utils': (None, 'yum-utils', 'generic', []),
+        'rsyslog': (None, 'rsyslog', 'generic', []),
         'com.redhat.lightblue.client-lightblue-client-core': (
-            '', 'com.redhat.lightblue.client:lightblue-client-core', 'maven', []
+            None, 'com.redhat.lightblue.client:lightblue-client-core', 'maven', []
         ),
         'com.redhat.fuse.eap-fuse-eap': (
-            '', 'com.redhat.fuse.eap:fuse-eap', 'maven', []
+            None, 'com.redhat.fuse.eap:fuse-eap', 'maven', []
         ),
-        'rsyslog-container': ('', 'rsyslog-container', 'docker', []),
+        'rsyslog-container': (None, 'rsyslog-container', 'docker', []),
         'openshift-enterprise-base-container': (
-            '', 'openshift-enterprise-base-container', 'docker', []
+            None, 'openshift-enterprise-base-container', 'docker', []
         ),
         'atomic-openshift-metrics-server-container': (
-            '', 'atomic-openshift-metrics-server-container', 'docker', []
+            None, 'atomic-openshift-metrics-server-container', 'docker', []
         ),
-        'jboss-eap-7-eap71': ('', 'jboss-eap-7-eap71', 'docker', []),
+        'jboss-eap-7-eap71': (None, 'jboss-eap-7-eap71', 'docker', []),
     }
 
     @classmethod
