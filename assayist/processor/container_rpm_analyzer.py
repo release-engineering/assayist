@@ -53,8 +53,9 @@ class ContainerRPMAnalyzer(Analyzer):
         # If there is no parent, then this is a base image. Just get all the RPMs installed in
         # the image and mark them as embedded artifacts in this container image.
         else:
+            image_rpm_file = self.read_metadata_file(self.IMAGE_RPM_FILE)
             for archive in arch_to_archive.values():
-                rpms = self.koji_session.listRPMs(imageID=archive['id'])
+                rpms = image_rpm_file.get(archive['id'])
                 self._process_embedded_rpms(archive, rpms)
 
     def _process_embedded_rpms(self, container_archive, rpms):
