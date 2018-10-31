@@ -24,7 +24,7 @@ def get_koji_session():  # pragma: no cover
     return koji.ClientSession(profile.config.server)
 
 
-def _assert_command(cmd_name):
+def assert_command(cmd_name):
     """
     Ensure a command is installed and can be found using the paths in $PATH.
 
@@ -56,7 +56,7 @@ def download_build_data(build_identifier, output_dir='/metadata'):
     # Import this here to avoid a circular import
     from assayist.processor.base import Analyzer
     # Make sure the Koji command is installed
-    _assert_command('koji')
+    assert_command('koji')
     koji = get_koji_session()
     build = koji.getBuild(build_identifier)
     write_file(build, output_dir, Analyzer.BUILD_FILE)
@@ -126,7 +126,7 @@ def download_build(build_identifier, output_dir):
     :rtype: (list, dict)
     """
     # Make sure the Koji command is installed
-    _assert_command('koji')
+    assert_command('koji')
     if not os.path.isdir(output_dir):
         raise RuntimeError(f'The passed in directory of "{output_dir}" does not exist')
 
@@ -177,7 +177,7 @@ def download_source(build_info, output_dir):
     :param output_dir: the path to download the source to
     """
     # Make sure the git command is installed
-    _assert_command('git')
+    assert_command('git')
 
     source_url = build_info.get('source')
     if not source_url:
@@ -250,8 +250,8 @@ def unpack_rpm(rpm_file, output_dir):
     :param str rpm_file: the path to the RPM to unpack
     :param str output_dir: the path to unpack the RPM to
     """
-    _assert_command('rpm2cpio')
-    _assert_command('cpio')
+    assert_command('rpm2cpio')
+    assert_command('cpio')
 
     # Get the CPIO file
     cpio_file = _rpm_to_cpio(rpm_file)

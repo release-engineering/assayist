@@ -15,22 +15,22 @@ from assayist.processor import utils
 
 
 def test_assert_command():
-    """Test the _assert_command function when the command exists."""
+    """Test the assert_command function when the command exists."""
     with mock.patch('shutil.which', return_value=True) as mock_which:
-        assert utils._assert_command('bash') is None
+        assert utils.assert_command('bash') is None
         mock_which.assert_called_once_with('bash')
 
 
 def test_assert_command_not_found():
-    """Test the _assert_command function when the command doesn't exist."""
+    """Test the assert_command function when the command doesn't exist."""
     with mock.patch('shutil.which', return_value=False) as mock_which:
         with pytest.raises(RuntimeError) as e:
-            assert utils._assert_command('bash') is None
+            assert utils.assert_command('bash') is None
             assert str(e) == 'The command "bash" is not installed and is required'
         mock_which.assert_called_once_with('bash')
 
 
-@mock.patch('assayist.processor.utils._assert_command')
+@mock.patch('assayist.processor.utils.assert_command')
 @mock.patch('assayist.processor.utils.get_koji_session')
 @mock.patch('assayist.processor.utils.write_file')
 def test_download_build_data_full_data(m_write_file, m_get_koji_session, m_assert_command):
@@ -95,7 +95,7 @@ def test_download_build_data_full_data(m_write_file, m_get_koji_session, m_asser
     ])
 
 
-@mock.patch('assayist.processor.utils._assert_command')
+@mock.patch('assayist.processor.utils.assert_command')
 @mock.patch('assayist.processor.utils.get_koji_session')
 @mock.patch('assayist.processor.utils.write_file')
 def test_download_build_data_empty_data(m_write_file, m_get_koji_session, m_assert_command):
@@ -134,7 +134,7 @@ def test_download_build_data_empty_data(m_write_file, m_get_koji_session, m_asse
     ])
 
 
-@mock.patch('assayist.processor.utils._assert_command')
+@mock.patch('assayist.processor.utils.assert_command')
 @mock.patch('assayist.processor.utils.get_koji_session')
 @mock.patch('subprocess.Popen')
 def test_download_build(m_popen, m_get_koji_session, m_assert_command):
@@ -185,7 +185,7 @@ def test_download_build(m_popen, m_get_koji_session, m_assert_command):
     m_koji_session.getBuild.assert_called_once_with(12345)
 
 
-@mock.patch('assayist.processor.utils._assert_command')
+@mock.patch('assayist.processor.utils.assert_command')
 @mock.patch('subprocess.Popen')
 def test_download_source(m_popen, m_assert_command):
     """Test the download_source function."""
@@ -246,7 +246,7 @@ def test__unpack_cpio(m_popen):
     m_process.communicate.assert_called_once_with(input=cpio_file)
 
 
-@mock.patch('assayist.processor.utils._assert_command')
+@mock.patch('assayist.processor.utils.assert_command')
 @mock.patch('assayist.processor.utils._unpack_cpio')
 @mock.patch('assayist.processor.utils._rpm_to_cpio')
 def test_unpack_rpm(m_rpm_to_cpio, m_unpack_cpio, m_assert_command):
