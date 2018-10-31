@@ -107,23 +107,3 @@ class ContainerRPMAnalyzer(Analyzer):
         for rpm_id in (child_rpm_ids - parent_rpm_ids):
             diff_rpms.append(id_to_rpm[rpm_id])
         return diff_rpms
-
-    @staticmethod
-    def is_container_archive(archive):
-        """
-        Inspect the archive to see if its a container archive.
-
-        :param dict archive: the Koji archive to inspect
-        :return: a boolean determining if it's a container archive
-        :rtype: bool
-        """
-        if archive['btype'] != 'image':
-            return False
-
-        try:
-            archive['extra']['image']['arch']
-            return True
-        # If archive['extra'] is None, then a TypeError is raised. If one of the keys is missing,
-        # then a KeyError is raised.
-        except (TypeError, KeyError):
-            return False
