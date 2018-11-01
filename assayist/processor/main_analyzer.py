@@ -125,7 +125,7 @@ class MainAnalyzer(Analyzer):
         # record the artifacts
         archives_info = self.read_metadata_file(self.ARCHIVE_FILE)
         for archive_info in archives_info:
-            if archive_info['type'] == 'log':
+            if archive_info['btype'] == 'log':
                 # No one cares about logs
                 continue
 
