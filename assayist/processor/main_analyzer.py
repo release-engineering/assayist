@@ -55,7 +55,10 @@ class MainAnalyzer(Analyzer):
             cnamespace = 'redhat'
             cname = build_info['name']
             ctype = 'rpm'
-            cversion = '%s-%s' % (build_info['version'], build_info['release'])
+            epoch = '0'
+            if 'epoch' in build_info and build_info['epoch']:
+                epoch = build_info['epoch']
+            cversion = '%s-%s-%s' % (epoch, build_info['version'], build_info['release'])
         elif build_type == 'maven':
             # If it's a maven build then the maven info file should exist with the info we need.
             maven_info = self.read_metadata_file(self.MAVEN_FILE)
@@ -98,16 +101,16 @@ class MainAnalyzer(Analyzer):
         # construct the component
         component, canonical_version = self._construct_and_save_component(build_type, build_info)
 
-        # construct the SourceLocation
+        # construct the local SourceLocation
         source = build_info['source']
-        source_location = self.create_or_update_source_location(source, canonical_version)
-        source_location.component.connect(component)
+        local_source_location = self.create_or_update_source_location(
+            source, component, canonical_version)
 
         # construct the build object
         build = content.Build.get_or_create({
             'id_': build_info['id'],
             'type_': build_type})[0]
-        build.source_location.connect(source_location)
+        build.source_location.connect(local_source_location)
 
         # record the rpms associated with this build
         rpms_info = self.read_metadata_file(self.RPM_FILE)
