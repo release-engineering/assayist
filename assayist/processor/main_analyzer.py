@@ -100,14 +100,14 @@ class MainAnalyzer(Analyzer):
 
         # construct the SourceLocation
         source = build_info['source']
-        sourceLocation = self.create_or_update_source_location(source, canonical_version)
-        sourceLocation.component.connect(component)
+        source_location = self.create_or_update_source_location(source, canonical_version)
+        source_location.component.connect(component)
 
         # construct the build object
         build = content.Build.get_or_create({
             'id_': build_info['id'],
             'type_': build_type})[0]
-        build.source_location.connect(sourceLocation)
+        build.source_location.connect(source_location)
 
         # record the rpms associated with this build
         rpms_info = self.read_metadata_file(self.RPM_FILE)
@@ -125,22 +125,8 @@ class MainAnalyzer(Analyzer):
                 continue
 
             log.debug('Creating build artifact %s', archive_info['id'])
-            aid = archive_info['id']
-            atype = archive_info['btype']
-            checksum = archive_info['checksum']
-            filename = archive_info['filename']
-            buildroot_id = archive_info['buildroot_id']
-            # Find the nested arch information or set noarch. Note that 'extra' can exist
-            # and be set to None in real data, so you can't chain all the gets.
-            extra = archive_info.get('extra', {})
-            if extra:
-                arch = extra.get('image', {}).get('arch', 'noarch')
-            else:
-                arch = 'noarch'
-
-            archive = self.create_or_update_archive_artifact(
-                aid, filename, arch, atype, checksum)
+            archive = self.create_or_update_archive_artifact_from_archive_info(archive_info)
             archive.build.connect(build)
-            self._map_buildroot_to_artifact(buildroot_id, archive)
+            self._map_buildroot_to_artifact(archive_info['buildroot_id'], archive)
 
         self._read_and_save_buildroots()

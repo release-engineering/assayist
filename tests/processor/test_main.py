@@ -191,6 +191,25 @@ def test_create_or_update_container_archive_artifact():
     assert artifact.id == artifact2.id
 
 
+@pytest.mark.parametrize('image', [IMAGE1, IMAGE2])
+def test_create_or_update_container_archive_artifact_from_archive_info(image):
+    """Test the create_or_update_archive_artifact_from_archive_info function for a container."""
+    analyzer = main_analyzer.MainAnalyzer()
+    artifact = analyzer.create_or_update_archive_artifact_from_archive_info(image)
+
+    assert image['filename'] == artifact.filename
+    assert image['id'] == artifact.archive_id
+    assert image['extra']['image']['arch'] == artifact.architecture
+    assert 'container' == artifact.type_
+    assert image['checksum'] == artifact.checksums[0].checksum
+    assert 'md5' == artifact.checksums[0].algorithm
+    assert 'unsigned' == artifact.checksums[0].checksum_source
+    assert hasattr(artifact, 'id')  # ID exists, hence is saved
+
+    artifact2 = analyzer.create_or_update_archive_artifact_from_archive_info(image)
+    assert artifact.id == artifact2.id
+
+
 def test_create_or_update_maven_archive_artifact():
     """Test the basic function of the create_or_update_archive_artifact with a maven artifact."""
     analyzer = main_analyzer.MainAnalyzer()
@@ -218,6 +237,25 @@ def test_create_or_update_maven_archive_artifact():
         arch=arch,
         archive_type=JAR['btype'],
         checksum=JAR['checksum'])
+    assert artifact.id == artifact2.id
+
+
+def test_create_or_update_maven_archive_artifact_from_artifact_info():
+    """Test the create_or_update_archive_artifact_from_archive_info function on a maven artifact."""
+    analyzer = main_analyzer.MainAnalyzer()
+    artifact = analyzer.create_or_update_archive_artifact_from_archive_info(JAR)
+
+    assert JAR['filename'] == artifact.filename
+    assert JAR['id'] == artifact.archive_id
+    assert 'noarch' == artifact.architecture
+    assert 'maven' == artifact.type_
+    assert JAR['checksum'] == artifact.checksums[0].checksum
+    assert 'md5' == artifact.checksums[0].algorithm
+    assert 'unsigned' == artifact.checksums[0].checksum_source
+    assert hasattr(artifact, 'id')  # ID exists, hence is saved
+
+    # 're-creating' should just return existing node
+    artifact2 = analyzer.create_or_update_archive_artifact_from_archive_info(JAR)
     assert artifact.id == artifact2.id
 
 

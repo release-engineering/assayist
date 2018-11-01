@@ -119,6 +119,30 @@ class Analyzer(ABC):
             arch=rpm_info['arch'],
             checksum=rpm_info['payloadhash'])
 
+    def create_or_update_archive_artifact_from_archive_info(self, archive_info):
+        """
+        Create or update an Artifact for this archive from a dictionary.
+
+        :param dict archive_info: A dictionary of information, like one that comes from brew.
+                                  Must contain the fields used in create_or_update_archive_artifact.
+        :return: an Artifact object
+        :rtype: assayist.common.models.content.Artifact
+        """
+        archive_id = archive_info['id']
+        _type = archive_info['btype']
+        checksum = archive_info['checksum']
+        filename = archive_info['filename']
+
+        # Find the nested arch information or set noarch. Note that 'extra' can exist
+        # and be set to None in real data, so you can't chain all the gets.
+        extra = archive_info.get('extra', {})
+        if extra:
+            arch = extra.get('image', {}).get('arch', 'noarch')
+        else:
+            arch = 'noarch'
+
+        return self.create_or_update_archive_artifact(archive_id, filename, arch, _type, checksum)
+
     def create_or_update_archive_artifact(self, archive_id, filename, arch, archive_type, checksum):
         """
         Create or update an Artifact for this archive.
