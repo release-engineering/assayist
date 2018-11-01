@@ -97,6 +97,8 @@ class MainAnalyzer(Analyzer):
         build_type = None
         if task_info:
             build_type = task_info['method']
+        elif self.is_container_build(build_info):
+            build_type = 'buildContainer'
 
         # construct the component
         component, canonical_version = self._construct_and_save_component(build_type, build_info)
