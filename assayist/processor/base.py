@@ -236,6 +236,10 @@ class Analyzer(ABC):
             'url': url,
             'type_': sl_type})[0]
 
+        # It's possible that component is None
+        if not component:
+            return sl.save()
+
         if canonical_version:
             sl.canonical_version = canonical_version
 
