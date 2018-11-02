@@ -42,6 +42,20 @@ class MainAnalyzer(Analyzer):
                 for artifact in self._buildroot_to_artifact[buildroot_id]:
                     artifact.buildroot_artifacts.connect(rpm)
 
+    @staticmethod
+    def _extract_component_name_and_namespace(pull):
+        """Extract component name and namespace from image pull metadata.
+
+        :param str pull: pull metadata
+        :return: component name and namespace
+        :rtype: tuple
+        """
+        pull = pull.split('/', 1)[1]  # strip leading builder hostname
+        pull = pull.rsplit('@', 1)[0]  # strip trailing commit identifier
+
+        cnamespace, _, cname = pull.rpartition('/')
+        return cnamespace, cname
+
     def _construct_and_save_component(self, build_type, build_info):
         """
         Read the build info and construct the Component.
@@ -72,9 +86,7 @@ class MainAnalyzer(Analyzer):
             pulls = build_info.get('extra', {}).get('image', {}).get('index', {}).get('pull', [])
             best_pull_list = [x for x in pulls if '@' in x]
             if best_pull_list:
-                best_pull = best_pull_list[0]
-                cnamespace, rest = best_pull.split('/', 1)
-                cname, _ = rest.split('@', 1)
+                cnamespace, cname = self._extract_component_name_and_namespace(best_pull_list[0])
             else:
                 cnamespace = 'docker'
                 cname = build_info['name']
