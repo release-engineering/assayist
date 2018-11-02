@@ -83,8 +83,8 @@ IMAGE1 = {'id': '1',
                   'arch': 'x86_64',
                   'index': {
                       'pull': [
-                          'repo.example.com/sherr/sherr-project@sha256:deadbeef',
-                          'repo.example.com/sherr/sherr-project:123-4321']}}}}
+                          'repo.example.com/openshift/example-project@sha256:deadbeef',
+                          'repo.example.com/openshift/example-project:123-4321']}}}}
 
 IMAGE2 = {'id': '2',
           'checksum': '89506da3abd1de6a00c8d1403b3259e5',
@@ -99,8 +99,8 @@ IMAGE2 = {'id': '2',
                   'arch': 'ppc64le',
                   'index': {
                       'pull': [
-                          'repo.example.com/sherr/sherr-project@sha256:deadbeef',
-                          'repo.example.com/sherr/sherr-project:123-4321']}}}}
+                          'repo.example.com/openshift/example-project@sha256:deadbeef',
+                          'repo.example.com/openshift/example-project:123-4321']}}}}
 
 JAR = {'id': '3',
        'checksum': '89506da3abd1de6a00c8d1403b3259e6',
@@ -418,7 +418,7 @@ def test_main_bad():
     assert not Build.nodes.get_or_none(id_='4321')  # should have been rolled back
 
 
-def test__construct_and_save_component():
+def test_construct_and_save_component():
     """Test the basic functioning of the _construct_and_save_component method."""
     analyzer = main_analyzer.MainAnalyzer()
     btype = 'build'  # rpm build
@@ -450,8 +450,8 @@ def test__construct_and_save_component():
     btype = 'buildContainer'
     component, version = analyzer._construct_and_save_component(btype, IMAGE1)
     assert version == '6-7.el7'
-    assert component.canonical_namespace == 'repo.example.com'
-    assert component.canonical_name == 'sherr/sherr-project'
+    assert component.canonical_namespace == 'openshift'
+    assert component.canonical_name == 'example-project'
     assert component.canonical_type == 'docker'
     component.id  # exists, hence is saved
 
@@ -482,7 +482,7 @@ def read_metadata_test_data(self, FILE):
 
 
 @mock.patch('assayist.processor.base.Analyzer.read_metadata_file', new=read_metadata_test_data)
-def test__read_and_save_buildroots():
+def test_read_and_save_buildroots():
     """
     Test the basic function of the _build_and_save_buildroots function.
 
@@ -550,3 +550,17 @@ def test_run():
     assert len(vim.embedded_artifacts) == 0
     assert len(ssh.embedded_artifacts) == 0
     assert len(jar.embedded_artifacts) == 0
+
+
+@pytest.mark.parametrize('input, expected_output', [
+    ('koji-docker01.example.com:8989/rhel7-minimal@sha256:833101863e',
+     ('', 'rhel7-minimal')),
+    ('koji-docker01.example.com:8989/openshift3/ose-console@sha256:833101863e',
+     ('openshift3', 'ose-console')),
+    ('koji-docker01.example.com:8989/openshift3/ose-console/etcd@sha256:833101863e',
+     ('openshift3/ose-console', 'etcd')),
+])
+def test_extract_component_name_and_namespace(input, expected_output):
+    """Test the _extract_component_name_and_namespace() function."""
+    analyzer = main_analyzer.MainAnalyzer()
+    assert analyzer._extract_component_name_and_namespace(input) == expected_output
