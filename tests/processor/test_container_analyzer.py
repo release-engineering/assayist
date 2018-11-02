@@ -150,14 +150,13 @@ class TestContainerAnalyzerRun:
             assert parent_artifact.artifacts_in_buildroot_for.get().architecture == arch
 
 
-@mock.patch('assayist.processor.container_analyzer.get_koji_session')
-def test_create_or_update_parent_build_new(mock_get_koji_session):
+def test_create_or_update_parent_build_new():
     """Test the ContainerAnalyzer._create_or_update_parent function for a new parent build."""
     m_koji = mock.Mock()
     m_koji.listArchives.return_value = [IMAGE1, IMAGE2]
-    mock_get_koji_session.return_value = m_koji
 
     analyzer = ContainerAnalyzer()
+    analyzer._koji_session = m_koji
     arch_to_artifact_object = analyzer._create_or_update_parent(123456)
 
     assert arch_to_artifact_object

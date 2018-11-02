@@ -12,6 +12,7 @@ import rpm
 from assayist.common.models import content, source
 from assayist.processor.configuration import config
 from assayist.processor.logging import log
+from assayist.processor.utils import get_koji_session
 
 
 def rpm_compare(x, y):
@@ -74,6 +75,7 @@ class Analyzer(ABC):
         :param str input_dir: The directory in which to find the files.
         """
         self.input_dir = input_dir
+        self._koji_session = None
 
     def main(self):
         """Call this to run the analyzer."""
@@ -92,6 +94,13 @@ class Analyzer(ABC):
     @abstractmethod
     def run(self):
         """Implement analyzer code here in your subclass."""
+
+    @property
+    def koji_session(self):
+        """Return a cached Koji session and create it if necessary."""
+        if self._koji_session is None:
+            self._koji_session = get_koji_session()
+        return self._koji_session
 
     def read_metadata_file(self, in_file):
         """

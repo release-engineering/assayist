@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0+
 
 from assayist.processor.base import Analyzer
-from assayist.processor.utils import get_koji_session
 from assayist.processor.logging import log
 from assayist.common.models import content
 
@@ -17,7 +16,6 @@ class ContainerRPMAnalyzer(Analyzer):
             log.info(f'Skipping build {build_id} because the build is not a container')
             return
 
-        self.koji_session = get_koji_session()
         # Create a mapping of arch to archive (container image) so we can easily map to the
         # parent container archives in a future loop
         arch_to_archive = {}
