@@ -50,6 +50,15 @@ def generic_key(x):
 class Analyzer(ABC):
     """Base Abstract class that analyzers will inherit from."""
 
+    # Directory paths, relative to input_dir
+    METADATA_DIR = 'metadata'
+    FILES_DIR = 'output_files'
+    SOURCE_DIR = 'source'
+    UNPACKED_ARCHIVES_DIR = 'unpacked_archives'
+    UNPACKED_CONTAINER_LAYER_DIR = os.path.join(UNPACKED_ARCHIVES_DIR,
+                                                'container_layer')
+
+    # Metadata files (use with read_metadata_file)
     BUILD_FILE = 'buildinfo.json'
     TASK_FILE = 'taskinfo.json'
     MAVEN_FILE = 'maveninfo.json'
@@ -58,7 +67,7 @@ class Analyzer(ABC):
     IMAGE_RPM_FILE = 'image-rpms.json'
     BUILDROOT_FILE = 'buildroot-components.json'
 
-    def __init__(self, input_dir='/metadata'):
+    def __init__(self, input_dir='/'):
         """
         Initialize the Analyzer class.
 
@@ -93,7 +102,7 @@ class Analyzer(ABC):
         :rtype: {}
         :raises ValueError: if the file was not valid json content
         """
-        filename = os.path.join(self.input_dir, in_file)
+        filename = os.path.join(self.input_dir, self.METADATA_DIR, in_file)
         if os.path.isfile(filename):
             with open(filename, 'r') as f:
                 return json.load(f)
@@ -275,7 +284,8 @@ class Analyzer(ABC):
         file_path = path_in_container.lstrip('/')
 
         container_layer_dir = os.path.join(
-            self.input_dir, 'unpacked_archives', 'container_layer', container_archive['filename'])
+            self.input_dir, self.UNPACKED_CONTAINER_LAYER_DIR,
+            container_archive['filename'])
         if not os.path.isdir(container_layer_dir):
             raise RuntimeError(f'The path "{container_layer_dir}" is not a directory')
 
