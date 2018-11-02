@@ -6,6 +6,7 @@ import logging
 import os
 
 from assayist.processor import utils
+from assayist.processor.base import Analyzer
 
 
 # Always set the logging to INFO
@@ -29,10 +30,10 @@ except ValueError:
 
 output_dir = args.output_dir or '.'
 
-output_metadata_dir = os.path.join(output_dir, 'metadata')
-output_files_dir = os.path.join(output_dir, 'output_files')
-output_source_dir = os.path.join(output_dir, 'source')
-unpacked_archives_dir = os.path.join(output_dir, 'unpacked_archives')
+output_metadata_dir = os.path.join(output_dir, Analyzer.METADATA_DIR)
+output_files_dir = os.path.join(output_dir, Analyzer.FILES_DIR)
+output_source_dir = os.path.join(output_dir, Analyzer.SOURCE_DIR)
+unpacked_archives_dir = os.path.join(output_dir, Analyzer.UNPACKED_ARCHIVES_DIR)
 
 for directory in (output_metadata_dir, output_files_dir, unpacked_archives_dir, output_source_dir):
     if not os.path.isdir(directory):
