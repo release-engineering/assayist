@@ -165,6 +165,17 @@ class Analyzer(ABC):
         :return: an Artifact object
         :rtype: assayist.common.models.content.Artifact
         """
+        # If payloadhash isn't present, then the RPM info is incomplete and probably comes from
+        # some API call like getBuildrootListing
+        if 'payloadhash' not in rpm_info:
+            if 'rpm_id' in rpm_info:
+                rpm_id = rpm_info['rpm_id']
+            elif 'id' in rpm_info:
+                rpm_id = rpm_info['id']
+            else:
+                raise RuntimeError('The rpm_info did not contain an ID')
+            rpm_info = self.koji_session.getRPM(rpm_id)
+
         return self.create_or_update_rpm_artifact(
             rpm_id=rpm_info['id'],
             name=rpm_info['name'],
