@@ -169,21 +169,27 @@ def download_build(build_identifier, output_dir):
     return artifacts, build
 
 
-def download_source(build_info, output_dir):
+def download_source(build_info, output_dir, sources_cmd=None):
     """
     Download the source (from dist-git) that was used in the specified build.
 
-    :param build_info: build information from koji.getBuild()
-    :param output_dir: the path to download the source to
+    :param dict build_info: build information from koji.getBuild()
+    :param str output_dir: the path to download the source to
+    :param list sources_cmd: command to run to download source artifacts,
+        or None for the default (['rhpkg', 'sources'])
     """
-    # Make sure the git command is installed
+    if sources_cmd is None:
+        sources_cmd = ['rhpkg', 'sources']
+
+    # Make sure the commands we'll run are installed
     assert_command('git')
+    assert_command(sources_cmd[0])
 
     source_url = build_info.get('source')
     if not source_url:
         raise RuntimeError(f'Build {build_info["id"]} has no associated source URL.')
 
-    log.info(f'Downloading source for {build_info["id"]}')
+    log.info(f'Cloning source for {build_info["id"]}')
 
     url, _, commit_id = source_url.partition('#')
     # Sometimes the source URL uses "?#" to separate the repo from the commit, so we can just strip
@@ -201,7 +207,17 @@ def download_source(build_info, output_dir):
         raise RuntimeError(f'The command "{" ".join(cmd)}" failed with: {error_output}')
 
     cmd = ['git', 'reset', '--hard', commit_id]
-    process = subprocess.Popen(cmd, cwd=os.path.join(output_dir, component),
+    repo_dir = os.path.join(output_dir, component)
+    process = subprocess.Popen(cmd, cwd=repo_dir,
+                               stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+
+    _, error_output = process.communicate()
+    error_output = error_output.decode('utf-8')
+    if process.returncode != 0:
+        raise RuntimeError(f'The command "{" ".join(cmd)}" failed with: {error_output}')
+
+    log.info(f'Downloading sources for {build_info["id"]}')
+    process = subprocess.Popen(sources_cmd, cwd=repo_dir,
                                stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
 
     _, error_output = process.communicate()
