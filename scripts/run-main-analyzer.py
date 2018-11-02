@@ -6,8 +6,7 @@ import os
 
 from assayist.processor.main_analyzer import MainAnalyzer
 
-parser = argparse.ArgumentParser(
-    description='Download the artifacts associated with a build and unpack them')
+parser = argparse.ArgumentParser(description='Run the main analyzer')
 parser.add_argument('--input-dir', type=str,
                     help='The diretory containing the "metadata" directory')
 args = parser.parse_args()
