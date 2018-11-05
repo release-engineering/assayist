@@ -40,7 +40,7 @@ def generic_key(x):
     """
     Evaluate to a comparable generic version.
 
-    :param str x: The version in question
+    :param Component x: The version in question
     :return: Some type of comparable object
     :rtype: Object
     """
