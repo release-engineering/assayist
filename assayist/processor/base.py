@@ -290,6 +290,33 @@ class Analyzer(ABC):
         self.conditional_connect(sl.component, component)
         return sl.save()
 
+    def claim_file(self, base_dir, path_in_base_dir):
+        """
+        Claim (delete) a file in the base directory.
+
+        This method is used by analyzers to claim a file they've identified. All directories are
+        silently ignored.
+
+        :param str base_dir: the base directory to claim a file from
+        :param str path_in_base_dir: the path to the file in the base directory to claim
+        :raises RuntimeError: when path_in_base_dir is the root directory or the path to the
+            base_dir is not a directory
+        """
+        if path_in_base_dir == '/':
+            raise RuntimeError('You cannot claim the root directory of a container')
+
+        file_path = path_in_base_dir.lstrip('/')
+
+        if not os.path.isdir(base_dir):
+            raise RuntimeError(f'The path "{base_dir}" is not a directory')
+
+        path_in_base_dir = os.path.join(base_dir, file_path)
+        if os.path.isdir(path_in_base_dir):
+            log.debug(f'Ignoring "{path_in_base_dir}" since directories don\'t get claimed')
+        elif os.path.isfile(path_in_base_dir):
+            log.debug(f'Claiming file "{path_in_base_dir}"')
+            os.remove(path_in_base_dir)
+
     def claim_container_file(self, container_archive, path_in_container):
         """
         Claim (delete) a file in the extracted container.
@@ -298,27 +325,14 @@ class Analyzer(ABC):
         silently ignored.
 
         :param str container_archive: the container archive to claim the file from
-        :param str path_in_container: the path to the file or directory in the container to claim
+        :param str path_in_container: the path to the file in the container to claim
         :raises RuntimeError: when path_in_container is the root directory or the path to the
             extracted container layer is not a directory
         """
-        if path_in_container == '/':
-            raise RuntimeError('You cannot claim the root directory of a container')
-
-        file_path = path_in_container.lstrip('/')
-
         container_layer_dir = os.path.join(
             self.input_dir, self.UNPACKED_CONTAINER_LAYER_DIR,
             container_archive['filename'])
-        if not os.path.isdir(container_layer_dir):
-            raise RuntimeError(f'The path "{container_layer_dir}" is not a directory')
-
-        path_in_container = os.path.join(container_layer_dir, file_path)
-        if os.path.isdir(path_in_container):
-            log.debug(f'Ignoring "{path_in_container}" since directories don\'t get claimed')
-        elif os.path.isfile(path_in_container):
-            log.debug(f'Claiming file "{path_in_container}"')
-            os.remove(path_in_container)
+        self.claim_file(container_layer_dir, path_in_container)
 
     @staticmethod
     def is_container_build(build_info):
