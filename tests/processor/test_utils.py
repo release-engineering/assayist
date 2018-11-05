@@ -43,7 +43,8 @@ def test_download_build_data_full_data(m_write_file, m_get_koji_session, m_asser
     RPM_INFO = [{'buildroot_id': '2'}, {'buildroot_id': '3'}]
     ARCHIVE_INFO = [{'buildroot_id': '3', 'id': '1'},
                     {'buildroot_id': '4', 'id': '2', 'btype': 'image'}]
-    BUILDROOT_INFO = {'a buldroot': 'ok'}
+    BUILDROOT_LISTING = [{'rpm_id': 1}, {'rpm_id': 2}]
+    BUILDROOT_INFO = [[RPM_INFO[0]], [RPM_INFO[1]]]
 
     m_koji = mock.Mock()
     m_koji.getBuild.return_value = BUILD_INFO
@@ -51,7 +52,8 @@ def test_download_build_data_full_data(m_write_file, m_get_koji_session, m_asser
     m_koji.getMavenBuild.return_value = MAVEN_INFO
     m_koji.listRPMs.return_value = RPM_INFO
     m_koji.listArchives.return_value = ARCHIVE_INFO
-    m_koji.getBuildrootListing.return_value = BUILDROOT_INFO
+    m_koji.getBuildrootListing.return_value = BUILDROOT_LISTING
+    m_koji.multiCall.return_value = BUILDROOT_INFO
     m_get_koji_session.return_value = m_koji
 
     utils.download_build_data(1, PATH)
@@ -79,7 +81,7 @@ def test_download_build_data_full_data(m_write_file, m_get_koji_session, m_asser
     # and write it to IMAGE_RPM_FILE.
     IMAGE_INFO = {'2': RPM_INFO}
     # The buildroot info should be repeated for each buildroot.
-    ALL_BUILDROOT_INFO = {'2': BUILDROOT_INFO, '3': BUILDROOT_INFO, '4': BUILDROOT_INFO}
+    ALL_BUILDROOT_INFO = {'2': RPM_INFO, '3': RPM_INFO, '4': RPM_INFO}
 
     assert m_write_file.call_count == 7
     m_write_file.assert_has_calls([

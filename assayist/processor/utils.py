@@ -100,7 +100,17 @@ def download_build_data(build_identifier, output_dir='/metadata'):
 
     buildroot_components = {}
     for bid in sorted(buildroot_ids):
-        buildroot_components[bid] = koji.getBuildrootListing(bid)
+        buildroot_components[bid] = [c['rpm_id'] for c in koji.getBuildrootListing(bid)]
+
+    for bid, rpm_ids in buildroot_components.items():
+        # getBuildrootListing() does not provide full RPM information to be able to create an
+        # artifact so call getRPM on each of the RPMs in a single call to get it.
+        koji.multicall = True
+        for rpm_id in rpm_ids:
+            koji.getRPM(rpm_id)
+
+        rpm_infos = koji.multiCall()
+        buildroot_components[bid] = [rpm_info[0] for rpm_info in rpm_infos]
 
     if buildroot_components:
         write_file(buildroot_components, output_dir, Analyzer.BUILDROOT_FILE)
