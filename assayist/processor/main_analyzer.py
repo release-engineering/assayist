@@ -109,6 +109,8 @@ class MainAnalyzer(Analyzer):
         build_type = None
         if task_info:
             build_type = task_info['method']
+        elif self.is_container_build(build_info):
+            build_type = 'buildContainer'
 
         # construct the component
         component, canonical_version = self._construct_and_save_component(build_type, build_info)
@@ -122,7 +124,7 @@ class MainAnalyzer(Analyzer):
         build = content.Build.get_or_create({
             'id_': build_info['id'],
             'type_': build_type})[0]
-        build.source_location.connect(local_source_location)
+        self.conditional_connect(build.source_location, local_source_location)
 
         # record the rpms associated with this build
         rpms_info = self.read_metadata_file(self.RPM_FILE)
@@ -135,13 +137,13 @@ class MainAnalyzer(Analyzer):
         # record the artifacts
         archives_info = self.read_metadata_file(self.ARCHIVE_FILE)
         for archive_info in archives_info:
-            if archive_info['type'] == 'log':
+            if archive_info['btype'] == 'log':
                 # No one cares about logs
                 continue
 
             log.debug('Creating build artifact %s', archive_info['id'])
             archive = self.create_or_update_archive_artifact_from_archive_info(archive_info)
-            archive.build.connect(build)
+            self.conditional_connect(archive.build, build)
             self._map_buildroot_to_artifact(archive_info['buildroot_id'], archive)
 
         self._read_and_save_buildroots()

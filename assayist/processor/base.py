@@ -12,6 +12,7 @@ import rpm
 from assayist.common.models import content, source
 from assayist.processor.configuration import config
 from assayist.processor.logging import log
+from assayist.processor.utils import get_koji_session
 
 
 def rpm_compare(x, y):
@@ -74,6 +75,7 @@ class Analyzer(ABC):
         :param str input_dir: The directory in which to find the files.
         """
         self.input_dir = input_dir
+        self._koji_session = None
 
     def main(self):
         """Call this to run the analyzer."""
@@ -92,6 +94,13 @@ class Analyzer(ABC):
     @abstractmethod
     def run(self):
         """Implement analyzer code here in your subclass."""
+
+    @property
+    def koji_session(self):
+        """Return a cached Koji session and create it if necessary."""
+        if self._koji_session is None:
+            self._koji_session = get_koji_session()
+        return self._koji_session
 
     def read_metadata_file(self, in_file):
         """
@@ -156,6 +165,17 @@ class Analyzer(ABC):
         :return: an Artifact object
         :rtype: assayist.common.models.content.Artifact
         """
+        # If payloadhash isn't present, then the RPM info is incomplete and probably comes from
+        # some API call like getBuildrootListing
+        if 'payloadhash' not in rpm_info:
+            if 'rpm_id' in rpm_info:
+                rpm_id = rpm_info['rpm_id']
+            elif 'id' in rpm_info:
+                rpm_id = rpm_info['id']
+            else:
+                raise RuntimeError('The rpm_info did not contain an ID')
+            rpm_info = self.koji_session.getRPM(rpm_id)
+
         return self.create_or_update_rpm_artifact(
             rpm_id=rpm_info['id'],
             name=rpm_info['name'],
@@ -235,6 +255,10 @@ class Analyzer(ABC):
         sl = source.SourceLocation.create_or_update({
             'url': url,
             'type_': sl_type})[0]
+
+        # It's possible that component is None
+        if not component:
+            return sl.save()
 
         if canonical_version:
             sl.canonical_version = canonical_version

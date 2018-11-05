@@ -3,15 +3,10 @@
 from assayist.common.models import content
 from assayist.processor.base import Analyzer
 from assayist.processor.logging import log
-from assayist.processor.utils import get_koji_session
 
 
 class ContainerAnalyzer(Analyzer):
     """Analyzes the parent builds of a specific build."""
-
-    def __init__(self):
-        """Declare instance attributes."""
-        self.koji_session = None
 
     def run(self):
         """Start the container analyzer."""
@@ -71,9 +66,6 @@ class ContainerAnalyzer(Analyzer):
             'id_': build_id,
             'type_': 'buildContainer',
         })[0]
-
-        if not self.koji_session:
-            self.koji_session = get_koji_session()
 
         archives = self.koji_session.listArchives(build_id)
         arch_to_artifact = {}

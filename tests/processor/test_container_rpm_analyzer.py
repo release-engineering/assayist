@@ -15,7 +15,7 @@ def test_get_rpms_diff():
     ]
     expected = [{'id': 125}, {'id': 126}]
     analyzer = ContainerRPMAnalyzer()
-    analyzer.koji_session = mock_session
+    analyzer._koji_session = mock_session
     assert analyzer._get_rpms_diff(1, 2) == expected
 
 
@@ -50,7 +50,7 @@ def test_process_embedded_rpms(mock_claim_cf):
     ]
 
     analyzer = ContainerRPMAnalyzer()
-    analyzer.koji_session = mock_session
+    analyzer._koji_session = mock_session
     analyzer._process_embedded_rpms(archive, rpms)
 
     container = content.Artifact.nodes.get_or_none(archive_id=1234, type_='container')
@@ -73,10 +73,9 @@ def test_process_embedded_rpms(mock_claim_cf):
 
 
 @mock.patch('assayist.processor.base.Analyzer.read_metadata_file')
-@mock.patch('assayist.processor.container_rpm_analyzer.get_koji_session')
 @mock.patch('assayist.processor.container_rpm_analyzer.ContainerRPMAnalyzer._get_rpms_diff')
 @mock.patch('assayist.processor.container_rpm_analyzer.ContainerRPMAnalyzer._process_embedded_rpms')
-def test_run(mock_p_e_rpms, mock_get_diff, mock_get_session, mock_read_md_file):
+def test_run(mock_p_e_rpms, mock_get_diff, mock_read_md_file):
     """Test the core logic in the run method when the image isn't a base image."""
     mock_session = mock.Mock()
     mock_session.listArchives.return_value = [
@@ -93,7 +92,6 @@ def test_run(mock_p_e_rpms, mock_get_diff, mock_get_session, mock_read_md_file):
             'btype': 'image',
         }
     ]
-    mock_get_session.return_value = mock_session
 
     mock_read_md_file.side_effect = [
         {
@@ -117,6 +115,7 @@ def test_run(mock_p_e_rpms, mock_get_diff, mock_get_session, mock_read_md_file):
     ]
 
     analyzer = ContainerRPMAnalyzer()
+    analyzer._koji_session = mock_session
     analyzer.run()
     # Make sure read_metadata_file was called twice, once for the build info and the other for the
     # archives
@@ -129,14 +128,11 @@ def test_run(mock_p_e_rpms, mock_get_diff, mock_get_session, mock_read_md_file):
 
 
 @mock.patch('assayist.processor.base.Analyzer.read_metadata_file')
-@mock.patch('assayist.processor.container_rpm_analyzer.get_koji_session')
 @mock.patch('assayist.processor.container_rpm_analyzer.ContainerRPMAnalyzer._get_rpms_diff')
 @mock.patch('assayist.processor.container_rpm_analyzer.ContainerRPMAnalyzer._process_embedded_rpms')
-def test_run_parent_image(mock_p_e_rpms, mock_get_diff, mock_get_session, mock_read_md_file):
+def test_run_parent_image(mock_p_e_rpms, mock_get_diff, mock_read_md_file):
     """Test the core logic in the run method when the image is a base image (no parent)."""
     mock_session = mock.Mock()
-    mock_get_session.return_value = mock_session
-
     mock_read_md_file.side_effect = [
         {
             'id': 1234,
@@ -163,6 +159,7 @@ def test_run_parent_image(mock_p_e_rpms, mock_get_diff, mock_get_session, mock_r
     ]
 
     analyzer = ContainerRPMAnalyzer()
+    analyzer._koji_session = mock_session
     analyzer.run()
     # Make sure read_metadata_file was called three times, once for the build info, once for the
     # archives, and once for the image rpms.
