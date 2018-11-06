@@ -6,7 +6,6 @@ import os
 from assayist.common.models import content
 from assayist.processor.base import Analyzer
 from assayist.processor.logging import log
-from assayist.processor.utils import get_koji_session
 
 
 class LooseRpmAnalyzer(Analyzer):
@@ -21,7 +20,8 @@ class LooseRpmAnalyzer(Analyzer):
         orig_dir = os.getcwd()
 
         # Switch to dir of all unpacked content to search for RPM files
-        os.chdir(os.path.join(self.input_dir, self.UNPACKED_ARCHIVES_DIR))
+        unpacked_content_path = os.path.join(self.input_dir, self.UNPACKED_ARCHIVES_DIR)
+        os.chdir(unpacked_content_path)
 
         for archive_type in os.listdir():  # 'rpm', 'container_layer', 'maven', etc.
             for archive in os.listdir(archive_type):  # dir name == archive filename
@@ -39,11 +39,14 @@ class LooseRpmAnalyzer(Analyzer):
                     if not loose_artifact.build.is_connected(loose_rpm_build):
                         loose_artifact.build.connect(loose_rpm_build)
 
-                    # Assume that the artifact exists and was created by the main analyzer.
+                    # Assume that the artifact being analyzed was created by the main analyzer.
                     archive_obj = content.Artifact.nodes.get(filename=archive)
-                    archive_obj.embedded_artifacts.connect(loose_artifact)
+                    self.conditional_connect(archive_obj.embedded_artifacts, loose_artifact)
 
-                    # TODO: claim file
+                    # TODO: Claim loose RPM file once PR44 is merged
+                    # path_to_archive = os.path.join(unpacked_content_path, archive_type, archive)
+                    # archive_file = os.path.relpath(loose_rpm, path_to_archive)
+                    # self.claim_file(path_to_archive, archive_file)
 
         # Return back to original directory
         os.chdir(orig_dir)
@@ -55,9 +58,6 @@ class LooseRpmAnalyzer(Analyzer):
         :return: new or existing Build associated with the specified RPM and the RPM info dict
         :rtype: tuple(Build, dict)
         """
-        if not self.koji_session:
-            self.koji_session = get_koji_session()
-
         # Find related RPM in Koji by the file name, e.g. `python-django-1.8.11-1.el7ost.noarch.rpm`
         # The `.rpm` extension is stripped automatically by Koji.
         rpm_info = self.koji_session.getRPM(rpm)
@@ -68,21 +68,9 @@ class LooseRpmAnalyzer(Analyzer):
         if not build_id:
             return None, None
 
-        # Find the related Brew build.
-        build_info = self.koji_session.getBuild(rpm_info['build_id'])
-        if not build_info:
-            return None, None
-
-        task_id = build_info.get('task_id')
-        if not task_id:
-            return None, None
-
-        # Find the task method of the task associated with the found build.
-        task_info = self.koji_session.getTaskInfo(build_info['task_id'])
-
         build = content.Build.get_or_create({
-            'id_': build_info['id'],
-            'type_': task_info['method'],
-        })
+            'id_': build_id,
+            'type_': 'rpm',
+        })[0]
 
         return build, rpm_info
