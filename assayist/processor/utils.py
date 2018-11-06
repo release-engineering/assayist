@@ -195,9 +195,7 @@ def download_source(build_info, output_dir, sources_cmd=None):
     # Sometimes the source URL uses "?#" to separate the repo from the commit, so we can just strip
     # the unneeded question mark
     url = url.rstrip('?')
-    component = url.split('/')[-1]
-
-    cmd = ['git', 'clone', url]
+    cmd = ['git', 'clone', url, output_dir]
     process = subprocess.Popen(cmd, cwd=output_dir,
                                stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
 
@@ -207,8 +205,7 @@ def download_source(build_info, output_dir, sources_cmd=None):
         raise RuntimeError(f'The command "{" ".join(cmd)}" failed with: {error_output}')
 
     cmd = ['git', 'reset', '--hard', commit_id]
-    repo_dir = os.path.join(output_dir, component)
-    process = subprocess.Popen(cmd, cwd=repo_dir,
+    process = subprocess.Popen(cmd, cwd=output_dir,
                                stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
 
     _, error_output = process.communicate()
@@ -217,7 +214,7 @@ def download_source(build_info, output_dir, sources_cmd=None):
         raise RuntimeError(f'The command "{" ".join(cmd)}" failed with: {error_output}')
 
     log.info(f'Downloading sources for {build_info["id"]}')
-    process = subprocess.Popen(sources_cmd, cwd=repo_dir,
+    process = subprocess.Popen(sources_cmd, cwd=output_dir,
                                stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
 
     _, error_output = process.communicate()

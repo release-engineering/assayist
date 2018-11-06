@@ -205,14 +205,14 @@ def test_download_source(m_popen, m_assert_command):
     assert m_process.communicate.call_count == 3
 
     m_popen.assert_has_calls([
-        mock.call(['git', 'clone', 'git://pkgs.com/containers/rsyslog'], cwd='/some/path',
-                  stdout=subprocess.DEVNULL, stderr=subprocess.PIPE),
+        mock.call(['git', 'clone', 'git://pkgs.com/containers/rsyslog', '/some/path'],
+                  cwd='/some/path', stdout=subprocess.DEVNULL, stderr=subprocess.PIPE),
         mock.call().communicate(),
         mock.call(['git', 'reset', '--hard', '4a4109c3e85908b6899b1aa291570f7c7b5a0cb5'],
-                  cwd='/some/path/rsyslog', stdout=subprocess.DEVNULL, stderr=subprocess.PIPE),
+                  cwd='/some/path', stdout=subprocess.DEVNULL, stderr=subprocess.PIPE),
         mock.call().communicate(),
         mock.call(['rhpkg', 'sources'],
-                  cwd='/some/path/rsyslog', stdout=subprocess.DEVNULL, stderr=subprocess.PIPE),
+                  cwd='/some/path', stdout=subprocess.DEVNULL, stderr=subprocess.PIPE),
         mock.call().communicate(),
     ])
 
