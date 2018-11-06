@@ -152,7 +152,7 @@ class UnknownFile(AssayistStructuredNode):
     # SHA256 checksum of the file
     checksum = StringProperty(required=True, index=True)
     filename = StringProperty(required=True, index=True)
-    # The path to the directory the file is located in
+    # The absolute path to the directory the file is located in
     path = StringProperty(required=True, index=True)
 
     # The artifacts this unknown file is embedded in
