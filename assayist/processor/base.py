@@ -279,6 +279,56 @@ class Analyzer(ABC):
         self.conditional_connect(sl.component, component)
         return sl.save()
 
+    def claim_file(self, base_dir, path_in_base_dir):
+        """
+        Claim (delete) a file in the base directory.
+
+        This method is used by analyzers to claim a file they've identified. All directories are
+        silently ignored.
+
+        :param str base_dir: the base directory to claim a file from
+        :param str path_in_base_dir: the path to the file in the base directory to claim
+        :raises RuntimeError: when path_in_base_dir is the root directory or the path to the
+            base_dir is not a directory
+        """
+        if path_in_base_dir == '/':
+            raise RuntimeError('You cannot claim the root directory of a container')
+
+        file_path = path_in_base_dir.lstrip('/')
+
+        if not os.path.isdir(base_dir):
+            raise RuntimeError(f'The path "{base_dir}" is not a directory')
+
+        abs_base_dir = os.path.abspath(base_dir)
+
+        def _resolve_path(target):
+            """Resolve the first symbolic link in the path recursively."""
+            current_path = target
+            # Crawl upwards starting at the target until the base directory is reached
+            while current_path != abs_base_dir:
+                if os.path.islink(current_path):
+                    # Get the absolute path of the link's target but strip the starting slash
+                    link_target = os.path.abspath(os.readlink(current_path))[1:]
+                    # Find the path after the link, for instance, if the link is
+                    # `/opt/rh/httpd24/root/etc/httpd` => `/etc/httpd`, and the passed in target is
+                    # `/opt/rh/httpd24/root/etc/httpd/httpd.conf`, then we just want `httpd.conf`.
+                    path_after_link = os.path.relpath(target, current_path)
+                    # The resolved path for the above example would be the base directory plus
+                    # `etc/httpd/httpd.conf`
+                    resolved_path = os.path.join(abs_base_dir, link_target, path_after_link)
+                    # In case there is more than one link in the path, call this closure again
+                    return _resolve_path(resolved_path)
+                current_path = os.path.dirname(current_path)
+            # No links were found, so just return the target
+            return target
+
+        resolved_path = _resolve_path(os.path.join(abs_base_dir, file_path))
+        if os.path.isdir(resolved_path):
+            log.debug(f'Ignoring "{resolved_path}" since directories don\'t get claimed')
+        elif os.path.isfile(resolved_path):
+            log.debug(f'Claiming file "{resolved_path}"')
+            os.remove(resolved_path)
+
     def claim_container_file(self, container_archive, path_in_container):
         """
         Claim (delete) a file in the extracted container.
@@ -287,27 +337,14 @@ class Analyzer(ABC):
         silently ignored.
 
         :param str container_archive: the container archive to claim the file from
-        :param str path_in_container: the path to the file or directory in the container to claim
+        :param str path_in_container: the path to the file in the container to claim
         :raises RuntimeError: when path_in_container is the root directory or the path to the
             extracted container layer is not a directory
         """
-        if path_in_container == '/':
-            raise RuntimeError('You cannot claim the root directory of a container')
-
-        file_path = path_in_container.lstrip('/')
-
         container_layer_dir = os.path.join(
             self.input_dir, self.UNPACKED_CONTAINER_LAYER_DIR,
             container_archive['filename'])
-        if not os.path.isdir(container_layer_dir):
-            raise RuntimeError(f'The path "{container_layer_dir}" is not a directory')
-
-        path_in_container = os.path.join(container_layer_dir, file_path)
-        if os.path.isdir(path_in_container):
-            log.debug(f'Ignoring "{path_in_container}" since directories don\'t get claimed')
-        elif os.path.isfile(path_in_container):
-            log.debug(f'Claiming file "{path_in_container}"')
-            os.remove(path_in_container)
+        self.claim_file(container_layer_dir, path_in_container)
 
     @staticmethod
     def is_container_build(build_info):
