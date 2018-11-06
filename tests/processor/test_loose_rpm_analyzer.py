@@ -22,14 +22,14 @@ RPM_INFO = {
 
 
 @mock.patch('assayist.processor.base.Analyzer.read_metadata_file')
-@mock.patch('assayist.processor.loose_rpm_analyzer.LooseRpmAnalyzer._get_associated_build')
+@mock.patch('assayist.processor.loose_rpm_analyzer.LooseRpmAnalyzer._get_related_build')
 def test_run_on_container_layer(m_get_build, m_read_metadata_file):
     """Test the LooseRpmAnalyzer.run() function on an unpacked container layer."""
     build = BuildFactory.create()
     container = ArtifactFactory.create(type_='container')
     build.artifacts.connect(container)
 
-    m_read_metadata_file.return_value = {'id': '1'}
+    m_read_metadata_file.return_value = {'id': 1}
 
     loose_rpm_build = BuildFactory.create()
     m_get_build.return_value = (loose_rpm_build, RPM_INFO)
@@ -49,6 +49,9 @@ def test_run_on_container_layer(m_get_build, m_read_metadata_file):
         analyzer = LooseRpmAnalyzer(temp_dir)
         analyzer.run()
 
+        assert os.path.exists(test_file) is True
+        assert os.path.exists(rpm_test_file) is False
+
     assert m_read_metadata_file.call_count == 1
     assert m_get_build.call_count == 1
 
@@ -58,8 +61,8 @@ def test_run_on_container_layer(m_get_build, m_read_metadata_file):
     assert container_artifact.embedded_artifacts.is_connected(loose_rpm_artifact)
 
 
-def test_get_associated_build():
-    """Test the LooseRpmAnalyzer._get_associated_build() function."""
+def test_get_related_build():
+    """Test the LooseRpmAnalyzer._get_related_build() function."""
     m_koji = mock.Mock()
     m_koji.getRPM.return_value = RPM_INFO
 
@@ -67,11 +70,11 @@ def test_get_associated_build():
     analyzer._koji_session = m_koji
 
     # Create new build
-    build, _ = analyzer._get_associated_build('python-django-1.8.11-1.el7ost.noarch.rpm')
+    build, _ = analyzer._get_related_build('python-django-1.8.11-1.el7ost.noarch.rpm')
     assert build.id_ == str(RPM_INFO['build_id'])
     assert build.type_ == 'rpm'
     assert content.Build.nodes.get(id_=str(RPM_INFO['build_id']))
 
     # Check that no new build is created
-    build, _ = analyzer._get_associated_build('python-django-1.8.11-1.el7ost.noarch.rpm')
+    build, _ = analyzer._get_related_build('python-django-1.8.11-1.el7ost.noarch.rpm')
     assert len(content.Build.nodes.all()) == 1
