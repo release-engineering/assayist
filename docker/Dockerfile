@@ -15,6 +15,7 @@ RUN dnf -y install \
   # Install brewkoji for the koji.conf.d config file
   brewkoji \
   git-core \
+  cpio \
   python3-koji \
   python3-neomodel \
   && dnf clean all
