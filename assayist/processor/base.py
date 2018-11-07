@@ -259,7 +259,9 @@ class Analyzer(ABC):
 
             # Find our place in the chain, which may be beginning, middle, or end.
             # Note that I'm assuming that these are all in the chain. Which they should be.
-            similar_source_locations.append(sl)
+            if sl not in similar_source_locations:
+                similar_source_locations.append(sl)
+
             if component.canonical_type in ('rpm', 'docker'):
                 # Containers use the version-release system from brew,
                 # so they need to be evaluated rpmishly too.
