@@ -18,7 +18,13 @@ RUN dnf -y install \
   cpio \
   python3-koji \
   python3-neomodel \
+  golang \
   && dnf clean all
+
+# Tools needed for Go analysis
+RUN go get rsc.io/goversion
+RUN go get github.com/release-engineering/backvendor
+RUN mv ~/go/bin/goversion ~/go/bin/backvendor /usr/bin/
 
 RUN mkdir /src
 WORKDIR /src
