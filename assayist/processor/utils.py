@@ -186,6 +186,9 @@ def download_source(build_info, output_dir):
     log.info(f'Downloading source for {build_info["id"]}')
 
     url, _, commit_id = source_url.partition('#')
+    # Sometimes the source URL uses "?#" to separate the repo from the commit, so we can just strip
+    # the unneeded question mark
+    url = url.rstrip('?')
     component = url.split('/')[-1]
 
     cmd = ['git', 'clone', url]
