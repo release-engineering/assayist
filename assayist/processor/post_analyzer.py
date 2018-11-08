@@ -3,13 +3,10 @@
 import glob
 import os
 
-from hashlib import sha256
-
 from assayist.common.models import content
 from assayist.processor.base import Analyzer
 from assayist.processor.logging import log
 
-BLOCKSIZE = 65536
 
 # List of directories to ignore when searching for unknown files.
 # Do not include the leading root dir because the analyzer works with paths relative to the
@@ -52,25 +49,8 @@ class PostAnalyzer(Analyzer):
                 archive_obj = content.Artifact.nodes.get(filename=archive)
 
                 unknown_file = content.UnknownFile.get_or_create({
-                    'checksum': self.sha256_checksum(unknown_file),
+                    'checksum': self.checksum(unknown_file),
                     'filename': filename,
                     'path': '/' + path,  # Add leading root dir
                 })[0]
                 self.conditional_connect(archive_obj.unknown_files, unknown_file)
-
-    @staticmethod
-    def sha256_checksum(filename):  # pragma: no cover
-        """Create a SHA 256 checksum for a (potentially large) file.
-
-        :param str filename: path to the file being checksummed
-        :return: SHA256 checksum
-        :rtype: str
-        """
-        sha = sha256()
-        with open(filename, 'rb') as f:
-            buffer = f.read(BLOCKSIZE)
-            while len(buffer) > 0:
-                sha.update(buffer)
-                buffer = f.read(BLOCKSIZE)
-
-        return sha.hexdigest()

@@ -11,15 +11,15 @@ from tests.factories import ArtifactFactory
 
 
 @mock.patch('assayist.processor.base.Analyzer.read_metadata_file')
-@mock.patch('assayist.processor.post_analyzer.PostAnalyzer.sha256_checksum')
-def test_run_one_unknown_file(m_sha256_checksum, m_read_metadata_file):
+@mock.patch('assayist.processor.base.Analyzer.checksum')
+def test_run_one_unknown_file(m_checksum, m_read_metadata_file):
     """Test the PostAnalyzer.run() function."""
     container = ArtifactFactory.create(type_='container')
     m_read_metadata_file.return_value = {
         'id': 1234,
         'extra': {'container_koji_task_id': 123456, 'image': {}},
     }
-    m_sha256_checksum.return_value = 'cafebabe'
+    m_checksum.return_value = 'cafebabe'
 
     with tempfile.TemporaryDirectory() as temp_dir:
         layer_dir = os.path.join(
@@ -34,7 +34,7 @@ def test_run_one_unknown_file(m_sha256_checksum, m_read_metadata_file):
         analyzer.run()
 
     assert m_read_metadata_file.call_count == 1
-    assert m_sha256_checksum.call_count == 1
+    assert m_checksum.call_count == 1
 
     assert len(content.UnknownFile.nodes.all()) == 1
 
