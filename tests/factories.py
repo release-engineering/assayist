@@ -284,6 +284,8 @@ class ComponentFactory(ModelFactory):
         ),
         'jboss-eap-7-eap71': ('', 'jboss-eap-7-eap71', 'docker', []),
         'python-devel': ('', 'python-devel', 'generic', ['python3-devel', 'python-devel']),
+        'python-builder-container': ('', 'python-builder-container', 'docker', []),
+        'app-xyz-container': ('', 'app-xyz-container', 'docker', [])
     }
 
     @classmethod
