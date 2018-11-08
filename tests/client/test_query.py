@@ -41,8 +41,8 @@ def test_get_container_sources():
     """Test the get_container_sources function."""
     container_build_id, internal_urls, upstream_urls = UseCaseFactory.container_with_rpm_artifacts()
     expected = {
-        'internal_urls': internal_urls,
-        'upstream_urls': upstream_urls,
+        'internal_urls': internal_urls[0:2],
+        'upstream_urls': upstream_urls[0:2],
     }
 
     assert query.get_container_content_sources(container_build_id) == expected
