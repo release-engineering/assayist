@@ -32,7 +32,7 @@ class PostAnalyzer(Analyzer):
         for archive in os.listdir(unpacked_container_layer):
             search_path = os.path.join(unpacked_container_layer, '**')
             for unknown_file in glob.iglob(search_path, recursive=True):
-                if os.path.isdir(unknown_file):
+                if not os.path.isfile(unknown_file):
                     continue
 
                 # Assume that the artifact being analyzed was created by the main analyzer.
