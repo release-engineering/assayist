@@ -179,7 +179,7 @@ def download_source(build_info, output_dir, sources_cmd=None):
         or None for the default (['rhpkg', 'sources'])
     """
     if sources_cmd is None:
-        sources_cmd = ['rhpkg', 'sources']
+        sources_cmd = ['rhpkg', '--user=1001', 'sources']
 
     # Make sure the commands we'll run are installed
     assert_command('git')
