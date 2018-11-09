@@ -23,9 +23,9 @@ def test_get_rpms_diff():
 def test_process_embedded_rpms(mock_claim_cf):
     """Test that the _process_embedded_rpms method creates the correct entries in Neo4j."""
     mock_session = mock.Mock()
-    mock_session.listRPMFiles.side_effect = [
-        [{'name': '/etc/app/app.conf'}, {'name': '/usr/bin/app'}],
-        [{'name': '/etc/app2/app.conf'}, {'name': '/usr/bin/app2'}]
+    mock_session.multiCall.return_value = [
+        [[{'name': '/etc/app/app.conf'}, {'name': '/usr/bin/app'}]],
+        [[{'name': '/etc/app2/app.conf'}, {'name': '/usr/bin/app2'}]],
     ]
     archive = {'id': 1234, 'btype': 'container', 'extra': {'image': {'arch': 'x86_64'}}}
     rpms = [
