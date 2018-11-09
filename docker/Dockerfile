@@ -14,6 +14,8 @@ RUN dnf -y install \
   --setopt=tsflags=nodocs \
   # Install brewkoji for the koji.conf.d config file
   brewkoji \
+  # Install rhpkg for go analyzer
+  rhpkg \
   git-core \
   cpio \
   python3-koji \
