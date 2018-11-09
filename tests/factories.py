@@ -283,6 +283,9 @@ class ComponentFactory(ModelFactory):
             '', 'atomic-openshift-metrics-server-container', 'docker', []
         ),
         'jboss-eap-7-eap71': ('', 'jboss-eap-7-eap71', 'docker', []),
+        'python-devel': ('', 'python-devel', 'generic', ['python3-devel', 'python-devel']),
+        'python-builder-container': ('', 'python-builder-container', 'docker', []),
+        'app-xyz-container': ('', 'app-xyz-container', 'docker', [])
     }
 
     @classmethod
@@ -468,14 +471,18 @@ class UseCaseFactory:
             'http://yum.baseurl.org/download/yum-utils/yum-utils-1.1.31.tar.gz',
         )
 
+        _, python_devel_rpm, _, _, python_devel_internal_sl = cls._rpm_build(
+            'python-devel', '3.6.6')
+
         _, _, container_build, container_artifact = cls._container_build(
             'openshift-enterprise-base-container')
         container_artifact.embedded_artifacts.connect(etcd_rpm)
         container_artifact.embedded_artifacts.connect(yum_utils_rpm)
+        yum_utils_rpm.buildroot_artifacts.connect(python_devel_rpm)
 
         return (container_build.id_,
-                [yum_utils_internal_sl.url, etcd_internal_sl.url],
-                [yum_utils_upstream_sl.url, etcd_upstream_sl.url])
+                [yum_utils_internal_sl.url, etcd_internal_sl.url, python_devel_internal_sl.url],
+                [yum_utils_upstream_sl.url, etcd_upstream_sl.url, None])
 
     @classmethod
     def container_with_preceding_rpm_versions(cls):
