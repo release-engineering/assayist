@@ -100,7 +100,7 @@ class ContainerGoAnalyzer(Analyzer):
 
             cmd = [self.BACKVENDOR] + options + [srcdir]
             log.info(f'Running {cmd}')
-            bv = subprocess.Popen(cmd, cwd=srcdir, text=True,
+            bv = subprocess.Popen(cmd, cwd=srcdir, universal_newlines=True,
                                   stdout=subprocess.PIPE,
                                   stderr=subprocess.PIPE)
 
@@ -171,7 +171,7 @@ class ContainerGoAnalyzer(Analyzer):
 
             cmd = [self.GOVERSION, '.']
             log.info(f'Running {cmd}')
-            gv = subprocess.Popen(cmd, cwd=layer_dir, text=True,
+            gv = subprocess.Popen(cmd, cwd=layer_dir, universal_newlines=True,
                                   stdout=subprocess.PIPE,
                                   stderr=subprocess.PIPE)
             (stdout, stderr) = gv.communicate()
