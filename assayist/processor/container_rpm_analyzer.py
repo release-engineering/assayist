@@ -1,8 +1,10 @@
 # SPDX-License-Identifier: GPL-3.0+
 
+from itertools import chain
+
+from assayist.common.models import content
 from assayist.processor.base import Analyzer
 from assayist.processor.logging import log
-from assayist.common.models import content
 
 
 class ContainerRPMAnalyzer(Analyzer):
@@ -67,8 +69,11 @@ class ContainerRPMAnalyzer(Analyzer):
             'archive_id': container_archive['id'],
             'type_': 'container',
         })[0]
+
         # Dictionary to cache Neo4j Build objects
         build_id_to_obj = {}
+
+        self.koji_session.multicall = True
         for rpm in rpms:
             rpm_artifact_obj = self.create_or_update_rpm_artifact_from_rpm_info(rpm)
             artifact_obj.embedded_artifacts.connect(rpm_artifact_obj)
@@ -78,10 +83,15 @@ class ContainerRPMAnalyzer(Analyzer):
                     'id_': rpm['build_id'], 'type_': 'rpm'})[0]
             build_id_to_obj[rpm['build_id']].artifacts.connect(rpm_artifact_obj)
 
-            # Claim the files these RPMs installed in the container image layer
-            for file_ in self.koji_session.listRPMFiles(rpm['id']):
-                file_path = file_['name']
-                self.claim_container_file(container_archive, file_path)
+            self.koji_session.listRPMFiles(rpm['id'])
+
+        # Query for list of all files in all RPMs in one call.
+        rpm_files = self.koji_session.multiCall()
+
+        # Claim the files these RPMs installed in the container image layer
+        for file_ in chain.from_iterable(chain.from_iterable(rpm_files)):
+            file_path = file_['name']
+            self.claim_container_file(container_archive, file_path)
 
     def _get_rpms_diff(self, parent_archive_id, child_archive_id):
         """
