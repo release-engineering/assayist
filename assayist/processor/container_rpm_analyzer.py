@@ -58,6 +58,31 @@ class ContainerRPMAnalyzer(Analyzer):
                 rpms = image_rpm_file.get(archive['id'])
                 self._process_embedded_rpms(archive, rpms)
 
+        # Claim all files from installed RPMs.
+        self._claim_rpm_files(arch_to_archive.values())
+
+    def _claim_rpm_files(self, archives):
+        """Claim files installed by RPMs in the container archives.
+
+        :param archives: list of archives being analyzed
+        """
+        image_rpm_file = self.read_metadata_file(self.IMAGE_RPM_FILE)
+
+        for archive in archives:
+            rpms = image_rpm_file.get(str(archive['id']))
+
+            self.koji_session.multicall = True
+            for rpm in rpms:
+                self.koji_session.listRPMFiles(rpm['id'])
+
+            # Query for list of all files in all RPMs in one call.
+            rpm_files = self.koji_session.multiCall()
+
+            # Claim the files these RPMs installed in the container image layer
+            for file_ in chain.from_iterable(chain.from_iterable(rpm_files)):
+                path = file_['name']
+                self.claim_container_file(archive, path)
+
     def _process_embedded_rpms(self, container_archive, rpms):
         """
         Add the nodes and relationships in Neo4j and claim the files these RPMs install.
@@ -73,7 +98,6 @@ class ContainerRPMAnalyzer(Analyzer):
         # Dictionary to cache Neo4j Build objects
         build_id_to_obj = {}
 
-        self.koji_session.multicall = True
         for rpm in rpms:
             rpm_artifact_obj = self.create_or_update_rpm_artifact_from_rpm_info(rpm)
             artifact_obj.embedded_artifacts.connect(rpm_artifact_obj)
@@ -82,16 +106,6 @@ class ContainerRPMAnalyzer(Analyzer):
                 build_id_to_obj[rpm['build_id']] = content.Build.get_or_create({
                     'id_': rpm['build_id'], 'type_': 'rpm'})[0]
             build_id_to_obj[rpm['build_id']].artifacts.connect(rpm_artifact_obj)
-
-            self.koji_session.listRPMFiles(rpm['id'])
-
-        # Query for list of all files in all RPMs in one call.
-        rpm_files = self.koji_session.multiCall()
-
-        # Claim the files these RPMs installed in the container image layer
-        for file_ in chain.from_iterable(chain.from_iterable(rpm_files)):
-            file_path = file_['name']
-            self.claim_container_file(container_archive, file_path)
 
     def _get_rpms_diff(self, parent_archive_id, child_archive_id):
         """

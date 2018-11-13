@@ -290,11 +290,10 @@ class Analyzer(ABC):
 
         :param str base_dir: the base directory to claim a file from
         :param str path_in_base_dir: the path to the file in the base directory to claim
-        :raises RuntimeError: when path_in_base_dir is the root directory or the path to the
-            base_dir is not a directory
+        :raises RuntimeError: when the path to the base_dir is not a directory
         """
         if path_in_base_dir == '/':
-            raise RuntimeError('You cannot claim the root directory of a container')
+            return
 
         file_path = path_in_base_dir.lstrip('/')
 
