@@ -62,7 +62,7 @@ class LooseRpmAnalyzer(Analyzer):
 
         build = content.Build.get_or_create({
             'id_': build_id,
-            'type_': 'rpm',
+            'type_': 'build',
         })[0]
 
         return build, rpm_info
