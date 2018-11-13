@@ -6,27 +6,21 @@ from assayist.processor.container_rpm_analyzer import ContainerRPMAnalyzer
 from assayist.common.models import content
 
 
-def test_get_rpms_diff():
+@mock.patch('assayist.processor.base.Analyzer.read_metadata_file')
+def test_get_rpms_diff(mock_read_md_file):
     """Test that the _get_rpms_diff method returns the correct output."""
     mock_session = mock.Mock()
-    mock_session.listRPMs.side_effect = [
-        [{'id': 123}, {'id': 124}],
-        [{'id': 123}, {'id': 124}, {'id': 125}, {'id': 126}],
-    ]
+    mock_session.listRPMs.return_value = [{'id': 123}, {'id': 124}]
+    mock_read_md_file.return_value = {'2': [{'id': 123}, {'id': 124}, {'id': 125}, {'id': 126}]}
+
     expected = [{'id': 125}, {'id': 126}]
     analyzer = ContainerRPMAnalyzer()
     analyzer._koji_session = mock_session
     assert analyzer._get_rpms_diff(1, 2) == expected
 
 
-@mock.patch('assayist.processor.container_rpm_analyzer.Analyzer.claim_container_file')
-def test_process_embedded_rpms(mock_claim_cf):
+def test_process_embedded_rpms():
     """Test that the _process_embedded_rpms method creates the correct entries in Neo4j."""
-    mock_session = mock.Mock()
-    mock_session.multiCall.return_value = [
-        [[{'name': '/etc/app/app.conf'}, {'name': '/usr/bin/app'}]],
-        [[{'name': '/etc/app2/app.conf'}, {'name': '/usr/bin/app2'}]],
-    ]
     archive = {'id': 1234, 'btype': 'container', 'extra': {'image': {'arch': 'x86_64'}}}
     rpms = [
         {
@@ -50,7 +44,6 @@ def test_process_embedded_rpms(mock_claim_cf):
     ]
 
     analyzer = ContainerRPMAnalyzer()
-    analyzer._koji_session = mock_session
     analyzer._process_embedded_rpms(archive, rpms)
 
     container = content.Artifact.nodes.get_or_none(archive_id=1234, type_='container')
@@ -68,14 +61,60 @@ def test_process_embedded_rpms(mock_claim_cf):
     assert embedded_artifact2.filename == 'app-1.2.3-1.x86_64.rpm'
     assert embedded_artifact2.type_ == 'rpm'
     assert embedded_artifact2.checksums[0].checksum == '123456789abcdef'
-    # Make sure claim_container_file was called once for each RPM file
+
+
+@mock.patch('assayist.processor.base.Analyzer.read_metadata_file')
+@mock.patch('assayist.processor.container_rpm_analyzer.Analyzer.claim_container_file')
+def test_claim_rpm_files(mock_claim_cf, mock_read_md_file):
+    """Test the _claim_rpm_files method."""
+    mock_session = mock.Mock()
+    mock_session.multiCall.return_value = [
+        [[{'name': '/etc/app/app.conf'}, {'name': '/usr/bin/app'}]],
+        [[{'name': '/etc/app2/app.conf'}, {'name': '/usr/bin/app2'}]],
+    ]
+
+    archive = {'id': 1234, 'btype': 'container', 'extra': {'image': {'arch': 'x86_64'}}}
+    mock_read_md_file.return_value = {
+        '1234': [
+            {
+                'id': 34,
+                'name': 'app',
+                'version': '1.2.3',
+                'release': 1,
+                'arch': 'x86_64',
+                'payloadhash': '123456789abcdef',
+                'build_id': 2,
+            },
+            {
+                'id': 35,
+                'name': 'app2',
+                'version': '2.3.4',
+                'release': 1,
+                'arch': 'x86_64',
+                'payloadhash': '3456789abcdef12',
+                'build_id': 3,
+            }
+        ]
+    }
+
+    analyzer = ContainerRPMAnalyzer()
+    analyzer._koji_session = mock_session
+    analyzer._claim_rpm_files([archive])
+
     assert mock_claim_cf.call_count == 4
+    mock_claim_cf.has_calls = [
+        mock.call(archive, '/etc/app/app.conf'),
+        mock.call(archive, '/usr/bin/app'),
+        mock.call(archive, '/etc/app2/app.conf'),
+        mock.call(archive, '/usr/bin/app2'),
+    ]
 
 
 @mock.patch('assayist.processor.base.Analyzer.read_metadata_file')
 @mock.patch('assayist.processor.container_rpm_analyzer.ContainerRPMAnalyzer._get_rpms_diff')
 @mock.patch('assayist.processor.container_rpm_analyzer.ContainerRPMAnalyzer._process_embedded_rpms')
-def test_run(mock_p_e_rpms, mock_get_diff, mock_read_md_file):
+@mock.patch('assayist.processor.container_rpm_analyzer.ContainerRPMAnalyzer._claim_rpm_files')
+def test_run(mock_c_r_files, mock_p_e_rpms, mock_get_diff, mock_read_md_file):
     """Test the core logic in the run method when the image isn't a base image."""
     mock_session = mock.Mock()
     mock_session.listArchives.return_value = [
@@ -130,7 +169,8 @@ def test_run(mock_p_e_rpms, mock_get_diff, mock_read_md_file):
 @mock.patch('assayist.processor.base.Analyzer.read_metadata_file')
 @mock.patch('assayist.processor.container_rpm_analyzer.ContainerRPMAnalyzer._get_rpms_diff')
 @mock.patch('assayist.processor.container_rpm_analyzer.ContainerRPMAnalyzer._process_embedded_rpms')
-def test_run_parent_image(mock_p_e_rpms, mock_get_diff, mock_read_md_file):
+@mock.patch('assayist.processor.container_rpm_analyzer.ContainerRPMAnalyzer._claim_rpm_files')
+def test_run_parent_image(mock_c_r_files, mock_p_e_rpms, mock_get_diff, mock_read_md_file):
     """Test the core logic in the run method when the image is a base image (no parent)."""
     mock_session = mock.Mock()
     mock_read_md_file.side_effect = [
