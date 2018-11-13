@@ -80,7 +80,7 @@ class ContainerRPMAnalyzer(Analyzer):
 
             if rpm['build_id'] not in build_id_to_obj:
                 build_id_to_obj[rpm['build_id']] = content.Build.get_or_create({
-                    'id_': rpm['build_id'], 'type_': 'rpm'})[0]
+                    'id_': rpm['build_id'], 'type_': 'build'})[0]
             build_id_to_obj[rpm['build_id']].artifacts.connect(rpm_artifact_obj)
 
             self.koji_session.listRPMFiles(rpm['id'])

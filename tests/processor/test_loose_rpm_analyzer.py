@@ -72,7 +72,7 @@ def test_get_related_build():
     # Create new build
     build, _ = analyzer._get_related_build('python-django-1.8.11-1.el7ost.noarch.rpm')
     assert build.id_ == str(RPM_INFO['build_id'])
-    assert build.type_ == 'rpm'
+    assert build.type_ == 'build'
     assert content.Build.nodes.get(id_=str(RPM_INFO['build_id']))
 
     # Check that no new build is created
