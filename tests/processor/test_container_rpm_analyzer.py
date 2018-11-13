@@ -6,13 +6,13 @@ from assayist.processor.container_rpm_analyzer import ContainerRPMAnalyzer
 from assayist.common.models import content
 
 
-def test_get_rpms_diff():
+@mock.patch('assayist.processor.base.Analyzer.read_metadata_file')
+def test_get_rpms_diff(mock_read_md_file):
     """Test that the _get_rpms_diff method returns the correct output."""
     mock_session = mock.Mock()
-    mock_session.listRPMs.side_effect = [
-        [{'id': 123}, {'id': 124}],
-        [{'id': 123}, {'id': 124}, {'id': 125}, {'id': 126}],
-    ]
+    mock_session.listRPMs.return_value = [{'id': 123}, {'id': 124}]
+    mock_read_md_file.return_value = {'2': [{'id': 123}, {'id': 124}, {'id': 125}, {'id': 126}]}
+
     expected = [{'id': 125}, {'id': 126}]
     analyzer = ContainerRPMAnalyzer()
     analyzer._koji_session = mock_session

@@ -109,7 +109,13 @@ class ContainerRPMAnalyzer(Analyzer):
 
         child_rpm_ids = set()
         id_to_rpm = {}
-        for rpm in self.koji_session.listRPMs(imageID=child_archive_id):
+        image_rpm_file = self.read_metadata_file(self.IMAGE_RPM_FILE)
+
+        rpms = image_rpm_file.get(str(child_archive_id), [])
+        if not rpms:
+            log.error(f'No RPM files found in IMAGE_RPM_FILE for archive ID {child_archive_id}')
+
+        for rpm in rpms:
             id_to_rpm[rpm['id']] = rpm
             child_rpm_ids.add(rpm['id'])
 
