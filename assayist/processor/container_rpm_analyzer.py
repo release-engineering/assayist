@@ -55,7 +55,7 @@ class ContainerRPMAnalyzer(Analyzer):
         else:
             image_rpm_file = self.read_metadata_file(self.IMAGE_RPM_FILE)
             for archive in arch_to_archive.values():
-                rpms = image_rpm_file.get(archive['id'])
+                rpms = image_rpm_file.get(str(archive['id']))
                 self._process_embedded_rpms(archive, rpms)
 
     def _process_embedded_rpms(self, container_archive, rpms):
