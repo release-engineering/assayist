@@ -11,6 +11,13 @@ from assayist.processor.logging import log
 
 BLOCKSIZE = 65536
 
+# List of directories to ignore when searching for unknown files.
+# Do not include the leading root dir because the analyzer works with paths relative to the
+# unpacked content.
+IGNORED_DIRS = (
+    'var/lib/yum/',  # Yum ghost files
+)
+
 
 class PostAnalyzer(Analyzer):
     """Performs post-analysis."""
@@ -35,11 +42,14 @@ class PostAnalyzer(Analyzer):
                 if not os.path.isfile(unknown_file):
                     continue
 
-                # Assume that the artifact being analyzed was created by the main analyzer.
-                archive_obj = content.Artifact.nodes.get(filename=archive)
-
                 path_to_archive = os.path.join(unpacked_container_layer, archive)
                 path, filename = os.path.split(os.path.relpath(unknown_file, path_to_archive))
+
+                if any(path.startswith(ignored_dir) for ignored_dir in IGNORED_DIRS):
+                    continue
+
+                # Assume that the artifact being analyzed was created by the main analyzer.
+                archive_obj = content.Artifact.nodes.get(filename=archive)
 
                 unknown_file = content.UnknownFile.get_or_create({
                     'checksum': self.sha256_checksum(unknown_file),
