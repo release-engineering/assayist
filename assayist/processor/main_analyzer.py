@@ -131,7 +131,7 @@ class MainAnalyzer(Analyzer):
         for rpm_info in rpms_info:
             buildroot_id = rpm_info['buildroot_id']
             rpm = self.create_or_update_rpm_artifact_from_rpm_info(rpm_info)
-            rpm.build.connect(build)
+            self.conditional_connect(rpm.build, build)
             self._map_buildroot_to_artifact(buildroot_id, rpm)
 
         # record the artifacts
