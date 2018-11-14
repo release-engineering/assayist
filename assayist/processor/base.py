@@ -5,6 +5,7 @@ from functools import cmp_to_key
 import json
 import os
 
+from hashlib import sha256
 from neomodel import db, ZeroOrOne, One
 from pkg_resources import parse_version
 import rpm
@@ -13,6 +14,8 @@ from assayist.common.models import content, source
 from assayist.processor.configuration import config
 from assayist.processor.logging import log
 from assayist.processor.utils import get_koji_session
+
+BLOCKSIZE = 65536
 
 
 def rpm_compare(x, y):
@@ -408,3 +411,21 @@ class Analyzer(ABC):
                         'conditional_connect doesn\'t support cardinality of one')
                 else:
                     relationship.connect(new_node)
+
+    @staticmethod
+    def checksum(filename, method=sha256):  # pragma: no cover
+        """Create a checksum for a (potentially large) file.
+
+        :param str filename: path to the file being checksummed
+        :param function method: the hashlib checksum function to use, default: sha256
+        :return: checksum
+        :rtype: str
+        """
+        func = method()
+        with open(filename, 'rb') as f:
+            buffer = f.read(BLOCKSIZE)
+            while len(buffer) > 0:
+                func.update(buffer)
+                buffer = f.read(BLOCKSIZE)
+
+        return func.hexdigest()

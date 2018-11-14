@@ -6,7 +6,7 @@ import argparse
 from assayist.processor.container_analyzer import ContainerAnalyzer
 from assayist.processor.container_go_analyzer import ContainerGoAnalyzer
 from assayist.processor.container_rpm_analyzer import ContainerRPMAnalyzer
-from assayist.processor.loose_rpm_analyzer import LooseRpmAnalyzer
+from assayist.processor.loose_artifact_analyzer import LooseArtifactAnalyzer
 from assayist.processor.main_analyzer import MainAnalyzer
 from assayist.processor.post_analyzer import PostAnalyzer
 
@@ -25,7 +25,7 @@ print('Running the container RPM analyzer...')
 ContainerRPMAnalyzer(input_dir).main()
 print('Running the container Go analyzer...')
 ContainerGoAnalyzer(input_dir).main()
-print('Running the loose RPM analyzer...')
-LooseRpmAnalyzer(input_dir).main()
+print('Running the loose artifact analyzer...')
+LooseArtifactAnalyzer(input_dir).main()
 print('Running the post-analyzer...')
 PostAnalyzer(input_dir).main()
