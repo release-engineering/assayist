@@ -80,16 +80,7 @@ class Analyzer(ABC):
     def main(self):
         """Call this to run the analyzer."""
         db.set_connection(config.DATABASE_URL)
-        # run the analyzer in a transaction
-        db.begin()
-        try:
-            self.run()
-            log.debug('Analyzer completed successfully, committing.')
-            db.commit()
-        except Exception:
-            log.exception('Error encountered executing Analyzer, rolling back transaction.')
-            db.rollback()
-            raise
+        self.run()
 
     @abstractmethod
     def run(self):
@@ -217,12 +208,15 @@ class Analyzer(ABC):
             _type = 'other'
         return self.__create_or_update_artifact(archive_id, _type, arch, filename, checksum)
 
+    @db.transaction
     def create_or_update_source_location(self, url, component, canonical_version=None):
         """
         Create or update SourceLocation.
 
         Connect it to the component provided.
         If canonical_version is provided link it with similar SourceLocations via SUPERSEDES.
+        This method runs in a transaction to prevent concurrent modification from breaking the
+        SUPERSEDES chain.
 
         :param str url: the url and possibly commit hash of the source location
         :param Component component: the component associated with this SourceLocation

@@ -7,7 +7,7 @@ import pytest
 
 from assayist.processor import base, main_analyzer
 from assayist.common.models.content import Artifact, Build
-from assayist.common.models.source import Component
+from assayist.common.models.source import Component, SourceLocation
 
 # RPM INFO BLOBS
 VIM_1_2_3 = {'buildroot_id': '1',
@@ -291,6 +291,34 @@ def test_create_or_update_source_location():
     assert sl.id == sl2.id
 
 
+@mock.patch('assayist.processor.base.Analyzer.conditional_connect')
+def test_create_or_update_source_location_bad(m_conditional_connect):
+    """Test that create_or_update_source_location rolls back on error."""
+    m_conditional_connect.side_effect = ValueError('something broke')
+
+    rpm_comp = Component.get_or_create({
+        'canonical_namespace': 'a',
+        'canonical_name': 'test',
+        'canonical_type': 'rpm'})[0]
+    rpm_comp.save()
+    analyzer = main_analyzer.MainAnalyzer()
+    url = 'www.whatever.com'
+    canonical_version = '0-1-3'
+
+    raised = False
+    try:
+        analyzer.create_or_update_source_location(
+            url=url,
+            component=rpm_comp,
+            canonical_version=canonical_version)
+    except ValueError:
+        raised = True
+
+    assert raised
+    sl = SourceLocation.nodes.get_or_none(url=url, type_='upstream')
+    assert not sl
+
+
 def test_supersedes_order_rpm():
     """Test that RPM SourceLocations are associated in the correct order."""
     rpm_comp = Component.get_or_create({
@@ -392,30 +420,12 @@ def good_run(self):
 
 
 @mock.patch('assayist.processor.main_analyzer.MainAnalyzer.run', new=good_run)
-def test_main_good():
-    """Ensure that the main function normally runs and commits successfully."""
+def test_main():
+    """Ensure that the main function normally runs successfully."""
     analyzer = main_analyzer.MainAnalyzer()
     analyzer.main()
     # should have been successfully created
     assert Build.nodes.get(id_='1234')
-
-
-def bad_run(self):
-    """Mock a simple run and throw an exception."""
-    Build.get_or_create({
-        'id_': '4321',
-        'type_': '1'})
-    raise ValueError()
-
-
-@mock.patch('assayist.processor.main_analyzer.MainAnalyzer.run', new=bad_run)
-def test_main_bad():
-    """Ensure that the main function rolls back in the case of an error."""
-    analyzer = main_analyzer.MainAnalyzer()
-    with pytest.raises(ValueError):
-        analyzer.main()
-
-    assert not Build.nodes.get_or_none(id_='4321')  # should have been rolled back
 
 
 def test_construct_and_save_component():
