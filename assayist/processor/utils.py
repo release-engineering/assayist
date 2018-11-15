@@ -6,11 +6,13 @@ import shutil
 import subprocess
 import tarfile
 import zipfile
+import re
 
 import koji
 
 from assayist.processor.configuration import config
 from assayist.processor.logging import log
+from assayist.processor.error import BuildSourceNotFound
 
 
 def get_koji_session():  # pragma: no cover
@@ -169,6 +171,38 @@ def download_build(build_identifier, output_dir):
     return artifacts, build
 
 
+def get_source_of_build(build_info):
+    """
+    Find the source used to build the Koji build.
+
+    :param dict build_info: the dict representing the Koji build to analyze
+    :return: the source used by Koji to build the build
+    :rtype: str
+    :raises BuildSourceNotFound: when the source can't be determined
+    """
+    no_source_msg = f'Build {build_info["id"]} has no associated source URL'
+    if build_info.get('source'):
+        return build_info['source']
+    elif build_info.get('task_id') is None:
+        raise BuildSourceNotFound(no_source_msg)
+
+    task_request = get_koji_session().getTaskRequest(build_info['task_id'])
+    if task_request is None:
+        raise BuildSourceNotFound(no_source_msg)
+    elif not isinstance(task_request, list):
+        raise BuildSourceNotFound(no_source_msg)
+
+    for value in task_request:
+        # Check if the value in the task_request is a git URL
+        if isinstance(value, str) and re.match(r'git\+?(https|ssh)?://', value):
+            return value
+        # Look for a dictionary in the task_request that may include the "ksurl" key
+        elif isinstance(value, dict) and isinstance(value.get('ksurl'), str):
+            return value['ksurl']
+
+    raise BuildSourceNotFound(no_source_msg)
+
+
 def download_source(build_info, output_dir, sources_cmd=None):
     """
     Download the source (from dist-git) that was used in the specified build.
@@ -185,10 +219,7 @@ def download_source(build_info, output_dir, sources_cmd=None):
     assert_command('git')
     assert_command(sources_cmd[0])
 
-    source_url = build_info.get('source')
-    if not source_url:
-        raise RuntimeError(f'Build {build_info["id"]} has no associated source URL.')
-
+    source_url = get_source_of_build(build_info)
     log.info(f'Cloning source for {build_info["id"]}')
 
     url, _, commit_id = source_url.partition('#')

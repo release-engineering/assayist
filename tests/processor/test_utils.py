@@ -402,3 +402,32 @@ def test_unpack_artifacts(m_unpack_tar, m_unpack_zip, m_unpack_container_image,
         [mock.call(rpm_dirs[0]), mock.call(rpm_dirs[1]), mock.call(non_rpm_dirs[0]),
          mock.call(container_dir), mock.call(non_rpm_dirs[1])]
     )
+
+
+@pytest.mark.parametrize('build_info,task_request,expected', [
+    (
+        {'id': 1, 'source': 'git://domain.local/rpms/pkg', 'task_id': 123},
+        [],
+        'git://domain.local/rpms/pkg'
+    ),
+    (
+        {'id': 1, 'source': None, 'task_id': 123},
+        ['red', 'git://domain.local/rpms/pkg', 'sox'],
+        'git://domain.local/rpms/pkg'
+    ),
+    (
+        {'id': 1, 'source': None, 'task_id': 123},
+        ['red', 'git+https://domain.local/rpms/pkg', 'sox'],
+        'git+https://domain.local/rpms/pkg'
+    ),
+    (
+        {'id': 1, 'source': None, 'task_id': 123},
+        ['red', {'ksurl': 'git://domain.local/rpms/pkg', 'red': 'sox'}, 'green'],
+        'git://domain.local/rpms/pkg'
+    ),
+])
+@mock.patch('assayist.processor.utils.get_koji_session')
+def test_get_source_of_build(mock_session, build_info, task_request, expected):
+    """Test that get_source_of_build can find the source of build using heuristics."""
+    mock_session.return_value.getTaskRequest.return_value = task_request
+    assert utils.get_source_of_build(build_info) == expected
