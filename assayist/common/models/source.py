@@ -18,7 +18,7 @@ class Component(AssayistStructuredNode):
     canonical_namespace = StringProperty(required=True)
     canonical_name = StringProperty(required=True, index=True)
     canonical_type = StringProperty(required=True, index=True)
-    alternative_names = ArrayProperty(index=True)
+    alternative_names = ArrayProperty(base_property=StringProperty(), index=True)
 
     # The source locations that provide this component
     source_locations = RelationshipFrom('SourceLocation', 'SOURCE_FOR')
