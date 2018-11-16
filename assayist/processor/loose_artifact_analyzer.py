@@ -32,7 +32,11 @@ class LooseArtifactAnalyzer(Analyzer):
     KOJI_BATCH_SIZE = 10
 
     def run(self):
-        """Start the loose RPM analyzer."""
+        """
+        Start the loose RPM analyzer.
+
+        :raises AnalysisFailure: if the analyzer completed with errors
+        """
         build_info = self.read_metadata_file(self.BUILD_FILE)
         build_id = build_info['id']
 
