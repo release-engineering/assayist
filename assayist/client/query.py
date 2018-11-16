@@ -9,15 +9,6 @@ from assayist.common.models.source import Component, SourceLocation
 from assayist.client.error import NotFound, InvalidInput
 
 
-def set_connection(neo4j_url):  # pragma: no cover
-    """
-    Set the Neo4j connection string.
-
-    :param str neo4j_url: the Neo4j connection string to configure neomodel with
-    """
-    neomodel.db.set_connection(neo4j_url)
-
-
 def get_container_by_component(name, type_, version):
     """Query for builds by component name and version.
 
