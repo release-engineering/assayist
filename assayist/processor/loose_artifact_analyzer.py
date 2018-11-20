@@ -50,28 +50,51 @@ class LooseArtifactAnalyzer(Analyzer):
                     for loose_artifact_batch in self.batches(glob.iglob(search_path,
                                                                         recursive=True)):
                         self.koji_session.multicall = True
+                        relative_filepath_batch = []
                         for loose_artifact in loose_artifact_batch:
                             if not loose_artifact:
                                 # can be None if it's the last batch
                                 continue
+                            relative_filepath = os.path.relpath(loose_artifact, path_to_archive)
                             # queue up the koji calls
                             if loose_artifact.endswith('.rpm'):
                                 rpm = os.path.basename(loose_artifact)
                                 log.info(f'Looking up RPM in Koji: {loose_artifact}')
                                 self.koji_session.getRPM(rpm)
+                                relative_filepath_batch.append(relative_filepath)
                             else:
-                                md5_checksum = self.checksum(loose_artifact, md5)
+                                try:
+                                    md5_checksum = self.checksum(loose_artifact, md5)
+                                except FileNotFoundError:
+                                    # There are two potential causes here, both with symlinks:
+                                    # 1) There is a symlink that points to a file in a different
+                                    #    layer of the container.
+                                    # 2) It was a symlink to something we already analyzed and
+                                    #    claimed.
+                                    #
+                                    # Either way I don't think we really care. If it's already
+                                    # claimed then we've already established the link to this
+                                    # artifact. If it's referenceing something on a different
+                                    # layer of the container then we'll find it when we analyse
+                                    # that build (and that's the layer that needs to be respun
+                                    # anyway, since that's what contains the actual thing).
+                                    # Let's just claim the file and move on.
+                                    log.warning(f'Skipping already-claimed symlink: '
+                                                f'{relative_filepath}')
+                                    self.claim_file(path_to_archive, relative_filepath)
+                                    continue
+
                                 log.info(
                                     f'Looking up archive in Koji: {md5_checksum}, {loose_artifact}')
                                 self.koji_session.listArchives(checksum=md5_checksum)
+                                relative_filepath_batch.append(relative_filepath)
 
                         responses = self.koji_session.multiCall()
                         # Process the individual responses. Responses are returned in the same
                         # order the calls are added, so we can zip it up to pair back with the
                         # file path.
-                        for loose_artifact, response in zip(loose_artifact_batch, responses):
-                            is_rpm = loose_artifact.endswith('.rpm')
-                            relative_filepath = os.path.relpath(loose_artifact, path_to_archive)
+                        for relative_filepath, response in zip(relative_filepath_batch, responses):
+                            is_rpm = relative_filepath.endswith('.rpm')
                             # If Koji could not find it or there was some other error, log it
                             # and continue. Response is either a dict if an error, or a list of
                             # one element if found.
