@@ -223,9 +223,9 @@ def download_source(build_info, output_dir, sources_cmd=None):
     log.info(f'Cloning source for {build_info["id"]}')
 
     url, _, commit_id = source_url.partition('#')
-    # Sometimes the source URL uses "?#" to separate the repo from the commit, so we can just strip
-    # the unneeded question mark
-    url = url.rstrip('?')
+    # Sometimes the source URL includes a "?" with an optional identifier; strip this so we're
+    # left with a bare URL.
+    url = url.split('?', 1)[0]
     cmd = ['git', 'clone', url, output_dir]
     process = subprocess.Popen(cmd, cwd=output_dir,
                                stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)

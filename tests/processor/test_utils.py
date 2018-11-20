@@ -185,13 +185,17 @@ def test_download_build(m_popen, m_get_koji_session, m_assert_command):
     m_koji_session.getBuild.assert_called_once_with(12345)
 
 
+@pytest.mark.parametrize('source_url', [
+    'git://pkgs.com/containers/rsyslog#4a4109c3e85908b6899b1aa291570f7c7b5a0cb5',
+    'git://pkgs.com/containers/rsyslog?rhel#4a4109c3e85908b6899b1aa291570f7c7b5a0cb5',
+])
 @mock.patch('assayist.processor.utils.assert_command')
 @mock.patch('subprocess.Popen')
-def test_download_source(m_popen, m_assert_command):
+def test_download_source(m_popen, m_assert_command, source_url):
     """Test the download_source function."""
     build_info = {
         'id': 12345,
-        'source': 'git://pkgs.com/containers/rsyslog#4a4109c3e85908b6899b1aa291570f7c7b5a0cb5',
+        'source': source_url,
     }
 
     m_process = mock.Mock()
