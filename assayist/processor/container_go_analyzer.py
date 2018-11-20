@@ -9,6 +9,7 @@ from assayist.common.models import content, source
 from assayist.processor.base import Analyzer
 from assayist.processor.utils import assert_command, unpack_zip, unpack_tar
 from assayist.processor.logging import log
+from assayist.processor.error import AnalysisFailure
 
 
 class ContainerGoAnalyzer(Analyzer):
@@ -29,7 +30,11 @@ class ContainerGoAnalyzer(Analyzer):
     VENDORED = 'embedded_source_locations'
 
     def run(self):
-        """Start the container Go analyzer."""
+        """
+        Start the container Go analyzer.
+
+        :raises AnalysisFailure: if the analyzer completed with errors
+        """
         # Check we have access to the executables we need.
         assert_command(self.BACKVENDOR)
         assert_command(self.GOVERSION)
@@ -47,9 +52,12 @@ class ContainerGoAnalyzer(Analyzer):
         try:
             source_location = source_locations[0]
         except IndexError:
-            log.error('Missing source location for container build')
-            return
+            msg = f'Missing source location for container build {build_id}'
+            log.error(msg)
+            raise AnalysisFailure(msg)
 
+        # Store the failure messages so they can be returned in an AnalysisFailure exception
+        failures = []
         # First process the source code that's directly available in
         # the dist-git repository.
         dist_git_excludes = [
@@ -66,8 +74,13 @@ class ContainerGoAnalyzer(Analyzer):
             'scripts',
         ]
         srcdir = os.path.join(self.input_dir, self.SOURCE_DIR)
-        self._process_source_code(source_location, srcdir,
-                                  excludes=dist_git_excludes)
+        failed_src_exc_msg = 'Failed while processing the source in "{}"'
+        failed_src_msg = 'Failed while processing the source in "{}" with "{}"'
+        try:
+            self._process_source_code(source_location, srcdir, excludes=dist_git_excludes)
+        except RuntimeError as error:
+            log.exception(failed_src_exc_msg.format(srcdir))
+            failures.append(failed_src_msg.format(srcdir, error))
 
         # Next process source code from archives (from 'rhpkg sources').
         # Look for tar archives and zip archives.
@@ -78,10 +91,18 @@ class ContainerGoAnalyzer(Analyzer):
         for unpack, archive in archives:
             with tempfile.TemporaryDirectory() as subsrc:
                 unpack(archive, subsrc)
-                self._process_source_code(source_location, subsrc)
+                try:
+                    self._process_source_code(source_location, subsrc)
+                except RuntimeError as error:
+                    log.exception(failed_src_exc_msg.format(srcdir))
+                    failures.append(failed_src_msg.format(subsrc, error))
 
         # Now claim all the Go executables.
         self._claim_go_executables()
+
+        if failures:
+            raise AnalysisFailure('GoAnalyzer completed with the following error(s): \n  {}'
+                                  .format("\n  ".join(failures)))
 
     def _process_source_code(self, source_location, srcdir, excludes=None):
         """Run backvendor on the source code.

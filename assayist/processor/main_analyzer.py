@@ -102,7 +102,11 @@ class MainAnalyzer(Analyzer):
         return component, cversion
 
     def run(self):
-        """Do the actual processing."""
+        """
+        Do the actual processing.
+
+        :raises AnalysisFailure: if the analyzer completed with errors
+        """
         build_info = self.read_metadata_file(self.BUILD_FILE)
         task_info = self.read_metadata_file(self.TASK_FILE)
 

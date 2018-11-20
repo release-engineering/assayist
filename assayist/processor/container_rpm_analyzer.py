@@ -11,7 +11,11 @@ class ContainerRPMAnalyzer(Analyzer):
     """Analyze the RPMs in a container image layer."""
 
     def run(self):
-        """Start the container RPM analyzer."""
+        """
+        Start the container RPM analyzer.
+
+        :raises AnalysisFailure: if the analyzer completed with errors
+        """
         build_info = self.read_metadata_file(self.BUILD_FILE)
         build_id = build_info['id']
         if not self.is_container_build(build_info):

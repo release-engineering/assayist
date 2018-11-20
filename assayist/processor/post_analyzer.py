@@ -20,7 +20,11 @@ class PostAnalyzer(Analyzer):
     """Performs post-analysis."""
 
     def run(self):
-        """Start the post analyzer."""
+        """
+        Start the post analyzer.
+
+        :raises AnalysisFailure: if the analyzer completed with errors
+        """
         build_info = self.read_metadata_file(self.BUILD_FILE)
         build_id = build_info['id']
 

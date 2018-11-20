@@ -5,6 +5,7 @@ import pytest
 from textwrap import dedent
 
 from assayist.processor.container_go_analyzer import ContainerGoAnalyzer
+from assayist.processor.error import AnalysisFailure
 from tests.factories import (
     ArtifactFactory, BuildFactory, ModelFactory, SourceLocationFactory
 )
@@ -49,6 +50,30 @@ class TestContainerGoAnalyzerRun:
 
         analyzer = ContainerGoAnalyzer()
         analyzer.run()
+        mock_process_source_code.assert_called_once()
+        mock_claim_go_executables.assert_called_once()
+
+    @mock.patch(MODULE + '.assert_command')
+    @mock.patch('assayist.processor.base.Analyzer.read_metadata_file')
+    @mock.patch(MODULE + '.ContainerGoAnalyzer._process_source_code')
+    @mock.patch(MODULE + '.ContainerGoAnalyzer._claim_go_executables')
+    def test_run_with_source_code_error(self, mock_claim_go_executables, mock_process_source_code,
+                                        mock_read_metadata_file, mock_assert_command):
+        """Test the run method finishes and returns False when _process_source_code fails."""
+        mock_read_metadata_file.return_value = {
+            'id': 774500,
+            'extra': {
+                'container_koji_task_id': 18568951,
+                'image': {
+                    'parent_image_builds': {},
+                },
+            },
+        }
+        mock_process_source_code.side_effect = RuntimeError('some Error')
+
+        analyzer = ContainerGoAnalyzer()
+        with pytest.raises(AnalysisFailure):
+            analyzer.run()
         mock_process_source_code.assert_called_once()
         mock_claim_go_executables.assert_called_once()
 

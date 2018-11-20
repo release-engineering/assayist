@@ -9,7 +9,11 @@ class ContainerAnalyzer(Analyzer):
     """Analyzes the parent builds of a specific build."""
 
     def run(self):
-        """Start the container analyzer."""
+        """
+        Start the container analyzer.
+
+        :raises AnalysisFailure: if the analyzer completed with errors
+        """
         build_info = self.read_metadata_file(self.BUILD_FILE)
         build_id = build_info['id']
 
