@@ -6,6 +6,7 @@ import os
 import pytest
 
 from assayist.processor.base import Analyzer as BaseAnalyzer
+from assayist.common.models.source import Component
 
 
 class DummyAnalyzer(BaseAnalyzer):
@@ -90,3 +91,41 @@ def test_claim_container_file_through_multiple_symlink():
         analyzer.claim_container_file(archive, '/test_symlink/test_symlink2/test_file.txt')
         assert os.path.exists(test_subdir) is True
         assert os.path.exists(test_file) is False
+
+
+def test_component_invalid_get_or_create():
+    """Ensure that the Component get_or_create method is not avialable."""
+    with pytest.raises(RuntimeError):
+        Component.get_or_create({
+            'canonical_namespace': 'a',
+            'canonical_name': 'kernel',
+            'canonical_type': 'rpm'})
+
+
+def test_component_invalid_create_or_update():
+    """Ensure that the Component create_or_update method is not avialable."""
+    with pytest.raises(RuntimeError):
+        Component.create_or_update({
+            'canonical_namespace': 'a',
+            'canonical_name': 'kernel',
+            'canonical_type': 'rpm'})
+
+
+def test_component_get_or_create_singleton():
+    """Ensure that the Component.get_or_create_singleton method works correctly."""
+    c1 = Component.get_or_create_singleton('', 'requests', 'rpm')
+    assert c1.id  # Is saved.
+    assert c1.canonical_namespace == ''
+    assert c1.canonical_name == 'requests'
+    assert c1.canonical_type == 'rpm'
+
+    c1.alternative_names = ['python2-requests', 'python2-requests']
+    c1.save()
+
+    # Same name as before
+    c2 = Component.get_or_create_singleton('', 'requests', 'rpm')
+    assert c1 == c2
+
+    # Different name, but in the alternatives list
+    c3 = Component.get_or_create_singleton('', 'python2-requests', 'rpm')
+    assert c1 == c3

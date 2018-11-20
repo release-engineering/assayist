@@ -95,10 +95,7 @@ class MainAnalyzer(Analyzer):
         else:
             return None, None
 
-        component = source.Component.get_or_create({
-            'canonical_namespace': cnamespace,
-            'canonical_name': cname,
-            'canonical_type': ctype})[0]
+        component = source.Component.get_or_create_singleton(cnamespace, cname, ctype)
         return component, cversion
 
     def run(self):
