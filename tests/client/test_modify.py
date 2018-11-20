@@ -50,7 +50,7 @@ def test_set_component_names_fix_canonical_name():
         canonical_namespace='', canonical_name='requests', canonical_type='pypi')
     assert component
     assert component.canonical_name == 'requests'
-    assert component.alternative_names == ['python3-requests', 'python-requests']
+    assert set(component.alternative_names) == set(['python3-requests', 'python-requests'])
 
 
 def test_set_component_names_fix_canonical_name_no_alt_input():
@@ -112,7 +112,6 @@ def test_set_component_names_merge_multiple_components():
     (('string', 1, 'string'), {}),
     (('string', 'string', 1), {}),
     (('something', '', 'something'), {}),
-    (('same', 'string', 'string'), {'alternatives': ['same']}),
     (('string', 'string', 'string'), {'alternatives': 1}),
     (('string', 'string', 'string'), {'alternatives': [1]}),
 ])

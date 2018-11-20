@@ -36,9 +36,6 @@ def set_component_names(c_name, c_type, c_namespace='', alternatives=None):
         if not isinstance(alternative, str):
             raise ValueError('The alternatives keyword argument must only contain strings')
 
-    if c_name in alternatives:
-        raise ValueError('The canonical name can\'t also be an alternative')
-
     # Create a WHERE clause that checks to see if there is a component with the canonical name or
     # alternative name with the passed in canonical name and alternatives
     names_where_clause = [
@@ -61,42 +58,32 @@ def set_component_names(c_name, c_type, c_namespace='', alternatives=None):
         log.info(f'Creating the component "{component}"')
         return
 
+    # Merge all the current canonical names and alternative names
+    all_alt_names = set(alternatives)
+    for c in components:
+        all_alt_names.add(c.canonical_name)
+        all_alt_names.update(c.alternative_names)
+
+    # By removing the correct canonical name, we have a set of the correct alternative names
+    all_alt_names.discard(c_name)
+
     # This will be the only remaining component if there is more than one component returned, as
     # the information stored in the others will be merged into this one
     component = components[0]
-    log.info(f'Modifying the existing component "{component}"')
     if component.canonical_name != c_name:
-        # Add the old canonical name as an alternative name
-        if component.canonical_name not in component.alternative_names:
-            component.alternative_names.append(component.canonical_name)
-        # Remove the new canonical name from the alternative names if it's present
-        if c_name in component.alternative_names:
-            component.alternative_names.pop(component.alternative_names.index(c_name))
-        # Set the proper canonical name
+        log.info(f'Setting the canonical name of "{c_name}" on "{component}"')
         component.canonical_name = c_name
-
-    # Add the missing alternative names
-    for alternative in alternatives:
-        if alternative not in component.alternative_names:
-            component.alternative_names.append(alternative)
+    if set(component.alternative_names) != set(all_alt_names):
+        log.info(f'Setting the alternative names of "{all_alt_names}" on "{component}"')
+        component.alternative_names = list(all_alt_names)
 
     # If there was more than one component that matched, we must merge them
     for c in components[1:]:
-        log.info(f'Merging the component "{c}" in the existing component "{component}"')
+        log.info(f'Merging the source locations of "{c}" in the existing component "{component}"')
         # Merge all the source locations on the first component
         for sl in c.source_locations.all():
             component.source_locations.connect(sl)
 
-        # Add the canonical name of this component as an alternative name for the first component,
-        # if applicable
-        if c.canonical_name != component.canonical_name and \
-                c.canonical_name not in component.alternative_names:
-            component.alternative_names.append(c.canonical_name)
-        # Add all the alternative names of this component to the first component, if applicable
-        for alternative in c.alternative_names:
-            if alternative != component.canonical_name and \
-                    alternative not in component.alternative_names:
-                component.alternative_names.append(alternative)
         # Delete this component since all its information is now stored in the first component
         log.warn(f'Deleting the component "{c}" since it was merged into "{component}"')
         c.delete()
