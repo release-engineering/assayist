@@ -5,6 +5,7 @@ import itertools
 import neomodel
 
 from assayist.common.models.source import Component
+from assayist.client.logging import log
 
 
 @neomodel.db.transaction
@@ -55,13 +56,15 @@ def set_component_names(c_name, c_type, c_namespace='', alternatives=None):
 
     # If no matching component is returned, just create one
     if not components:
-        Component(canonical_namespace=c_namespace, canonical_name=c_name, canonical_type=c_type,
-                  alternative_names=alternatives).save()
+        component = Component(canonical_namespace=c_namespace, canonical_name=c_name,
+                              canonical_type=c_type, alternative_names=alternatives).save()
+        log.info(f'Creating the component "{component}"')
         return
 
     # This will be the only remaining component if there is more than one component returned, as
     # the information stored in the others will be merged into this one
     component = components[0]
+    log.info(f'Modifying the existing component "{component}"')
     if component.canonical_name != c_name:
         # Add the old canonical name as an alternative name
         if component.canonical_name not in component.alternative_names:
@@ -79,6 +82,7 @@ def set_component_names(c_name, c_type, c_namespace='', alternatives=None):
 
     # If there was more than one component that matched, we must merge them
     for c in components[1:]:
+        log.info(f'Merging the component "{c}" in the existing component "{component}"')
         # Merge all the source locations on the first component
         for sl in c.source_locations.all():
             component.source_locations.connect(sl)
@@ -94,6 +98,7 @@ def set_component_names(c_name, c_type, c_namespace='', alternatives=None):
                     alternative not in component.alternative_names:
                 component.alternative_names.append(alternative)
         # Delete this component since all its information is now stored in the first component
+        log.warn(f'Deleting the component "{c}" since it was merged into "{component}"')
         c.delete()
 
     component.save()
