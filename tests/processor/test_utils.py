@@ -37,8 +37,10 @@ def test_download_build_data_full_data(m_write_file, m_get_koji_session, m_asser
     """Test the download_build_data function with all available data."""
     # Setup for a 'full data' test. The actual values of most return values doesn't matter.
     PATH = '/some/path'
-    BUILD_INFO = {'task_id': 2}
+    BUILD_INFO = {'task_id': 2, 'id': 1}
     TASK_INFO = {'a task': 5}
+    URL = 'git+https://example.com/whatever'
+    TASK_REQUEST = [URL]
     MAVEN_INFO = {'other': 'stuff'}
     RPM_INFO = [{'buildroot_id': '2'}, {'buildroot_id': '3'}]
     ARCHIVE_INFO = [{'buildroot_id': '3', 'id': '1'},
@@ -49,6 +51,7 @@ def test_download_build_data_full_data(m_write_file, m_get_koji_session, m_asser
     m_koji = mock.Mock()
     m_koji.getBuild.return_value = BUILD_INFO
     m_koji.getTaskInfo.return_value = TASK_INFO
+    m_koji.getTaskRequest.return_value = TASK_REQUEST
     m_koji.getMavenBuild.return_value = MAVEN_INFO
     m_koji.listRPMs.return_value = RPM_INFO
     m_koji.listArchives.return_value = ARCHIVE_INFO
@@ -61,6 +64,7 @@ def test_download_build_data_full_data(m_write_file, m_get_koji_session, m_asser
     # Assert that the brew calls we expect happened.
     m_koji.getBuild.assert_called_once_with(1)
     m_koji.getTaskInfo.assert_called_once_with(2)
+    m_koji.getTaskRequest.assert_called_once_with(2)
     m_koji.getMavenBuild.assert_called_once_with(1)
     # One regular and one for the image
     assert m_koji.listRPMs.call_count == 2
@@ -102,13 +106,14 @@ def test_download_build_data_empty_data(m_write_file, m_get_koji_session, m_asse
     """Test the download_build_data function with missing data."""
     # Setup for a 'full data' test. The actual values of most return values doesn't matter.
     PATH = '/some/path'
-    BUILD_INFO = {'task_id': None}
+    BUILD_INFO = {'task_id': None, 'id': 1, 'source': 'http://example.com'}
     RPM_INFO = []
     ARCHIVE_INFO = []
 
     m_koji = mock.Mock()
     m_koji.getBuild.return_value = BUILD_INFO
     m_koji.getTaskInfo.return_value = None
+    m_koji.getTaskRequest.return_value = None
     m_koji.getMavenBuild.return_value = None
     m_koji.listRPMs.return_value = RPM_INFO
     m_koji.listArchives.return_value = ARCHIVE_INFO
@@ -185,13 +190,15 @@ def test_download_build(m_popen, m_get_koji_session, m_assert_command):
     m_koji_session.getBuild.assert_called_once_with(12345)
 
 
-@pytest.mark.parametrize('source_url', [
-    'git://pkgs.com/containers/rsyslog#4a4109c3e85908b6899b1aa291570f7c7b5a0cb5',
-    'git://pkgs.com/containers/rsyslog?rhel#4a4109c3e85908b6899b1aa291570f7c7b5a0cb5',
+@pytest.mark.parametrize('source_url, expected_protocol', [
+    ('git://pkgs.com/containers/rsyslog#4a4109c3e85908b6899b1aa291570f7c7b5a0cb5', 'git'),
+    ('git://pkgs.com/containers/rsyslog?rhel#4a4109c3e85908b6899b1aa291570f7c7b5a0cb5', 'git'),
+    ('git+http://pkgs.com/containers/rsyslog#4a4109c3e85908b6899b1aa291570f7c7b5a0cb5', 'http'),
+    ('git+https://pkgs.com/containers/rsyslog#4a4109c3e85908b6899b1aa291570f7c7b5a0cb5', 'https'),
 ])
 @mock.patch('assayist.processor.utils.assert_command')
 @mock.patch('subprocess.Popen')
-def test_download_source(m_popen, m_assert_command, source_url):
+def test_download_source(m_popen, m_assert_command, source_url, expected_protocol):
     """Test the download_source function."""
     build_info = {
         'id': 12345,
@@ -209,8 +216,9 @@ def test_download_source(m_popen, m_assert_command, source_url):
     assert m_process.communicate.call_count == 3
 
     m_popen.assert_has_calls([
-        mock.call(['git', 'clone', 'git://pkgs.com/containers/rsyslog', '/some/path'],
-                  cwd='/some/path', stdout=subprocess.DEVNULL, stderr=subprocess.PIPE),
+        mock.call(['git', 'clone', expected_protocol + '://pkgs.com/containers/rsyslog',
+                  '/some/path'], cwd='/some/path', stdout=subprocess.DEVNULL,
+                  stderr=subprocess.PIPE),
         mock.call().communicate(),
         mock.call(['git', 'reset', '--hard', '4a4109c3e85908b6899b1aa291570f7c7b5a0cb5'],
                   cwd='/some/path', stdout=subprocess.DEVNULL, stderr=subprocess.PIPE),
@@ -418,16 +426,6 @@ def test_unpack_artifacts(m_unpack_tar, m_unpack_zip, m_unpack_container_image,
         {'id': 1, 'source': None, 'task_id': 123},
         ['red', 'git://domain.local/rpms/pkg', 'sox'],
         'git://domain.local/rpms/pkg'
-    ),
-    (
-        {'id': 1, 'source': None, 'task_id': 123},
-        ['red', 'git+http://domain.local/rpms/pkg', 'sox'],
-        'http://domain.local/rpms/pkg'
-    ),
-    (
-        {'id': 1, 'source': None, 'task_id': 123},
-        ['red', 'git+https://domain.local/rpms/pkg', 'sox'],
-        'https://domain.local/rpms/pkg'
     ),
     (
         {'id': 1, 'source': None, 'task_id': 123},
