@@ -182,7 +182,8 @@ def get_source_of_build(build_info):
     """
     no_source_msg = f'Build {build_info["id"]} has no associated source URL'
     if build_info.get('source'):
-        return build_info['source']
+        return re.sub(r'^git\+http', r'http', build_info['source'])
+
     elif build_info.get('task_id') is None:
         raise BuildSourceNotFound(no_source_msg)
 
