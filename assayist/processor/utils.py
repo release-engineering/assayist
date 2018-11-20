@@ -196,9 +196,12 @@ def get_source_of_build(build_info):
         # Check if the value in the task_request is a git URL
         if isinstance(value, str) and re.match(r'git\+?(https|ssh)?://', value):
             return value
-        # Look for a dictionary in the task_request that may include the "ksurl" key
-        elif isinstance(value, dict) and isinstance(value.get('ksurl'), str):
-            return value['ksurl']
+        # Look for a dictionary in the task_request that may include certain keys that hold the URL
+        elif isinstance(value, dict):
+            if isinstance(value.get('ksurl'), str):
+                return value['ksurl']
+            elif isinstance(value.get('indirection_template_url'), str):
+                return value['indirection_template_url']
 
     raise BuildSourceNotFound(no_source_msg)
 
