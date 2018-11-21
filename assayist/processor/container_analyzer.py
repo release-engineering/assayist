@@ -41,12 +41,18 @@ class ContainerAnalyzer(Analyzer):
 
             archive.embedded_artifacts.connect(related_archive)
 
-        # Process parent builds used as buildroots (those specified in `parent_image_builds`
-        # besides the `parent_build_id`. Embed all artifacts of each parent build as buildroot
-        # artifacts of this build's artifacts.
-        parent_image_builds = build_info['extra']['image']['parent_image_builds'].values()
-        parent_image_builds_ids = {build['id'] for build in parent_image_builds
-                                   if build['id'] != parent_build_id}
+        image_info = build_info['extra']['image']
+        try:
+            parent_image_builds = image_info['parent_image_builds'].values()
+
+            # Process parent builds used as buildroots (those specified in `parent_image_builds`
+            # besides the `parent_build_id`. Embed all artifacts of each parent build as buildroot
+            # artifacts of this build's artifacts.
+            parent_image_builds_ids = {build['id'] for build in parent_image_builds
+                                       if build['id'] != parent_build_id}
+        except KeyError:
+            # Older builds had different metadata in the extra field.
+            parent_image_builds_ids = [image_info['parent_build_id']]
 
         for buildroot_parent_build_id in parent_image_builds_ids:
             arch_to_artifact = self._create_or_update_parent(buildroot_parent_build_id)
