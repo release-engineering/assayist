@@ -3,6 +3,7 @@
 from assayist.common.models import content, source
 from assayist.processor.base import Analyzer
 from assayist.processor.logging import log
+from assayist.processor.utils import get_source_of_build
 
 
 class MainAnalyzer(Analyzer):
@@ -137,7 +138,7 @@ class MainAnalyzer(Analyzer):
                                                                           build_info)
 
         # construct the local SourceLocation
-        source = build_info['source']
+        source = get_source_of_build(build_info)
         local_source_location = self.create_or_update_source_location(
             source, component, canonical_version)
 
