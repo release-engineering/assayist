@@ -195,8 +195,8 @@ def get_source_of_build(build_info):
 
     for value in task_request:
         # Check if the value in the task_request is a git URL
-        if isinstance(value, str) and re.match(r'git\+?(https|ssh)?://', value):
-            return value
+        if isinstance(value, str) and re.match(r'git\+?(http[s]?|ssh)?://', value):
+            return re.sub(r'^git\+http', r'http', value)
         # Look for a dictionary in the task_request that may include certain keys that hold the URL
         elif isinstance(value, dict):
             if isinstance(value.get('ksurl'), str):

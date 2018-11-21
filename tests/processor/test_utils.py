@@ -421,8 +421,13 @@ def test_unpack_artifacts(m_unpack_tar, m_unpack_zip, m_unpack_container_image,
     ),
     (
         {'id': 1, 'source': None, 'task_id': 123},
+        ['red', 'git+http://domain.local/rpms/pkg', 'sox'],
+        'http://domain.local/rpms/pkg'
+    ),
+    (
+        {'id': 1, 'source': None, 'task_id': 123},
         ['red', 'git+https://domain.local/rpms/pkg', 'sox'],
-        'git+https://domain.local/rpms/pkg'
+        'https://domain.local/rpms/pkg'
     ),
     (
         {'id': 1, 'source': None, 'task_id': 123},
