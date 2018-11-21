@@ -264,11 +264,7 @@ def test_create_or_update_maven_archive_artifact_from_artifact_info():
 
 def test_create_or_update_source_location():
     """Test the basic function of the create_or_update_source_location function."""
-    rpm_comp = Component.get_or_create({
-        'canonical_namespace': 'a',
-        'canonical_name': 'test',
-        'canonical_type': 'rpm'})[0]
-    rpm_comp.save()
+    rpm_comp = Component.get_or_create_singleton('a', 'test', 'rpm')
     analyzer = main_analyzer.MainAnalyzer()
     url = 'www.whatever.com'
     canonical_version = '0-1-2'
@@ -296,11 +292,7 @@ def test_create_or_update_source_location_bad(m_conditional_connect):
     """Test that create_or_update_source_location rolls back on error."""
     m_conditional_connect.side_effect = ValueError('something broke')
 
-    rpm_comp = Component.get_or_create({
-        'canonical_namespace': 'a',
-        'canonical_name': 'test',
-        'canonical_type': 'rpm'})[0]
-    rpm_comp.save()
+    rpm_comp = Component.get_or_create_singleton('a', 'test', 'rpm')
     analyzer = main_analyzer.MainAnalyzer()
     url = 'www.whatever.com'
     canonical_version = '0-1-3'
@@ -321,11 +313,7 @@ def test_create_or_update_source_location_bad(m_conditional_connect):
 
 def test_supersedes_order_rpm():
     """Test that RPM SourceLocations are associated in the correct order."""
-    rpm_comp = Component.get_or_create({
-        'canonical_namespace': 'another',
-        'canonical_name': 'test',
-        'canonical_type': 'rpm'})[0]
-    rpm_comp.save()
+    rpm_comp = Component.get_or_create_singleton('another', 'test', 'rpm')
 
     URL_BASE = 'www.example.com/some/package#'
     analyzer = main_analyzer.MainAnalyzer()
@@ -352,11 +340,7 @@ def test_supersedes_order_rpm():
 
 def test_supersedes_order_maven():
     """Test that Maven SourceLocations are associated in the correct order."""
-    rpm_comp = Component.get_or_create({
-        'canonical_namespace': 'a',
-        'canonical_name': 'test',
-        'canonical_type': 'java'})[0]
-    rpm_comp.save()
+    rpm_comp = Component.get_or_create_singleton('a', 'test', 'java')
 
     URL_BASE = 'www.example.com/some/package#'
     analyzer = main_analyzer.MainAnalyzer()
@@ -383,11 +367,7 @@ def test_supersedes_order_maven():
 
 def test_supersedes_order_container():
     """Test that conatiner SourceLocations are associated in the correct order."""
-    rpm_comp = Component.get_or_create({
-        'canonical_namespace': 'a',
-        'canonical_name': 'test',
-        'canonical_type': 'docker'})[0]
-    rpm_comp.save()
+    rpm_comp = Component.get_or_create_singleton('a', 'test', 'docker')
 
     URL_BASE = 'www.example.com/some/package#'
     analyzer = main_analyzer.MainAnalyzer()

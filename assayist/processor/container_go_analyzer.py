@@ -161,11 +161,7 @@ class ContainerGoAnalyzer(Analyzer):
         :param str rev: vcs revision
         """
         namespace, name = mod.rsplit('/', 1)  # There must be at least one '/'
-        component = source.Component.get_or_create({
-            'canonical_type': 'golang',
-            'canonical_namespace': namespace,
-            'canonical_name': name})[0]
-
+        component = source.Component.get_or_create_singleton(namespace, name, 'golang')
         upstream = self.create_or_update_source_location("#".join([repo, rev]),
                                                          component,
                                                          ver)

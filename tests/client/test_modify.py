@@ -21,11 +21,7 @@ def test_set_component_names_new():
 
 def test_set_component_names_add_alt_names():
     """Test that set_component_names can add alternative names to an existing component."""
-    Component.get_or_create({
-        'canonical_namespace': '',
-        'canonical_name': 'requests',
-        'canonical_type': 'pypi'
-    })[0]
+    Component.get_or_create_singleton('', 'requests', 'pypi')
 
     modify.set_component_names('requests', 'pypi', alternatives=['python-requests'])
 
@@ -37,12 +33,9 @@ def test_set_component_names_add_alt_names():
 
 def test_set_component_names_fix_canonical_name():
     """Test that set_component_names fixes a canonical name."""
-    Component.get_or_create({
-        'canonical_namespace': '',
-        'canonical_name': 'python-requests',
-        'canonical_type': 'pypi',
-        'alternative_names': ['python3-requests']
-    })[0]
+    c = Component.get_or_create_singleton('', 'python-requests', 'pypi')
+    c.alternative_names = ['python3-requests']
+    c.save()
 
     modify.set_component_names('requests', 'pypi', alternatives=['python-requests'])
 
@@ -55,12 +48,9 @@ def test_set_component_names_fix_canonical_name():
 
 def test_set_component_names_fix_canonical_name_no_alt_input():
     """Test that set_component_names fixes a canonical name with alternatives input."""
-    Component.get_or_create({
-        'canonical_namespace': '',
-        'canonical_name': 'python-requests',
-        'canonical_type': 'pypi',
-        'alternative_names': ['requests']
-    })[0]
+    c = Component.get_or_create_singleton('', 'python-requests', 'pypi')
+    c.alternative_names = ['requests']
+    c.save()
 
     modify.set_component_names('requests', 'pypi')
 
@@ -73,21 +63,15 @@ def test_set_component_names_fix_canonical_name_no_alt_input():
 
 def test_set_component_names_merge_multiple_components():
     """Test that set_component_names merges all the matching components."""
-    c1 = Component.get_or_create({
-        'canonical_namespace': '',
-        'canonical_name': 'python-requests',
-        'canonical_type': 'pypi',
-        'alternative_names': ['py-requests', 'requests']
-    })[0]
+    c1 = Component.get_or_create_singleton('', 'python-requests', 'pypi')
+    c1.alternative_names = ['py-requests', 'requests']
+    c1.save()
     sl1 = SourceLocation(url='http://domain.local/python-requests', type_='local').save()
     c1.source_locations.connect(sl1)
 
-    c2 = Component.get_or_create({
-        'canonical_namespace': '',
-        'canonical_name': 'python2-requests',
-        'canonical_type': 'pypi',
-        'alternative_names': ['python3-requests', 'requests']
-    })[0]
+    c2 = Component.get_or_create_singleton('', 'python2-requests', 'pypi')
+    c2.alternative_names = ['python3-requests', 'requests']
+    c2.save()
     sl2 = SourceLocation(url='http://domain.local/python2-requests', type_='local').save()
     c2.source_locations.connect(sl2)
     sl3 = SourceLocation(url='http://domain.local/requests', type_='local').save()
