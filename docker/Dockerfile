@@ -21,7 +21,9 @@ RUN dnf -y install \
   python3-koji \
   python3-neomodel \
   golang \
-  && dnf clean all
+  && dnf clean all \
+  # workaround for unpacking broken rpms in unprivileged container
+  && setcap CAP_DAC_OVERRIDE+ep /usr/bin/cpio
 
 # Tools needed for Go analysis
 RUN go get rsc.io/goversion
