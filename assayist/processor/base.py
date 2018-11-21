@@ -362,6 +362,25 @@ class Analyzer(ABC):
             return True
 
     @staticmethod
+    def is_module_build(build_info):
+        """
+        Perform a heuristic evaluation to determine if this is a module build.
+
+        :param dict build_info: the Koji build info to examine
+        :returns: a boolean determining if the build is a module
+        :rtype: bool
+        """
+        # Protect against the value being `None` or something else unexpected
+        extra = build_info.get('extra')
+        if not extra or not isinstance(extra, dict):
+            return False
+        typeinfo = extra.get('typeinfo')
+        if not typeinfo or not typeinfo.get('module'):
+            return False
+        else:
+            return True
+
+    @staticmethod
     def is_container_archive(archive):
         """
         Inspect the archive to see if its a container archive.

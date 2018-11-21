@@ -11,7 +11,7 @@ parser = argparse.ArgumentParser(description='Return a list of stubbed builds')
 args = parser.parse_args()
 
 db.set_connection(config.DATABASE_URL)
-stubbed_builds = Build.nodes.has(source_location=False).all()
+stubbed_builds = Build.nodes.has(source_location=False).filter(type___ne='module')
 
 for build in stubbed_builds:
     print(build.id_)

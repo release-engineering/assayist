@@ -40,6 +40,11 @@ class LooseArtifactAnalyzer(Analyzer):
         build_info = self.read_metadata_file(self.BUILD_FILE)
         build_id = build_info['id']
 
+        # There's nothing we care about in module builds, exit early.
+        if self.is_module_build(build_info):
+            log.info(f"Skipping build {build_id} because it's a module build")
+            return
+
         # Dir of all unpacked content to search for RPM files
         unpacked_content_path = os.path.join(self.input_dir, self.UNPACKED_ARCHIVES_DIR)
 

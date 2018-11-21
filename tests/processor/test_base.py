@@ -18,6 +18,17 @@ class DummyAnalyzer(BaseAnalyzer):
 
 @pytest.mark.parametrize('build_info,expected', [
     ({'extra': None}, False),
+    ({'extra': {}}, False),
+    ({'extra': {'typeinfo': {}}}, False),
+    ({'extra': {'typeinfo': {'module': {'x': 1}}}}, True),
+])
+def test_is_module_build(build_info, expected):
+    """Test that the is_module_build method properly parses the passed-in build info."""
+    assert BaseAnalyzer.is_module_build(build_info) is expected
+
+
+@pytest.mark.parametrize('build_info,expected', [
+    ({'extra': None}, False),
     ({'extra': {'something': []}}, False),
     ({'extra': {'container_koji_task_id': 12345}}, True),
 ])
