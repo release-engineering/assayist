@@ -165,16 +165,9 @@ def test_download_build_unsupported_build_type(m_write_file, m_get_koji_session,
 
 
 @mock.patch('assayist.processor.utils.assert_command')
-@mock.patch('assayist.processor.utils.get_koji_session')
 @mock.patch('subprocess.Popen')
-def test_download_build(m_popen, m_get_koji_session, m_assert_command):
+def test_download_build(m_popen, m_assert_command):
     """Test the download_build function."""
-    m_koji_session = mock.Mock()
-    m_koji_session.getBuild.return_value = {
-        'id': 12345,
-    }
-
-    m_get_koji_session.return_value = m_koji_session
     error = b''
 
     m_process_rpm = mock.Mock()
@@ -203,7 +196,7 @@ def test_download_build(m_popen, m_get_koji_session, m_assert_command):
     process_calls = [m_process_rpm, m_process_maven, m_process_image]
     m_popen.side_effect = process_calls
     with mock.patch('os.path.isdir', return_value=True):
-        rv, _ = utils.download_build(12345, '/some/path')
+        rv = utils.download_build({'task_id': 2, 'id': 1}, '/some/path')
 
     assert rv == [
         '/some/path/resultsdb-2.1.0-2.el7.noarch.rpm',
@@ -212,7 +205,6 @@ def test_download_build(m_popen, m_get_koji_session, m_assert_command):
         '/some/path/com/eng/resultsdb-doc-0.51.0.jar',
     ]
     assert m_popen.call_count == 3
-    m_koji_session.getBuild.assert_called_once_with(12345)
 
 
 @pytest.mark.parametrize('source_url, expected_protocol', [

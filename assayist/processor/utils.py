@@ -86,6 +86,8 @@ def download_build_data(build_identifier, output_dir='/metadata'):
     :param str/int build_identifier: the string of the builds NVR or the integer of the build ID
     :param str output_dir: the path to download the brew info to
     :raises BuildSourceNotFound: when the source can't be determined
+    :return: build information
+    :rtype: dict
     :raises BuildTypeNotSupported: when the build type is not supported for analysis
     """
     # Import this here to avoid a circular import
@@ -167,25 +169,25 @@ def download_build_data(build_identifier, output_dir='/metadata'):
     if buildroot_components:
         write_file(buildroot_components, output_dir, Analyzer.BUILDROOT_FILE)
 
+    return build
 
-def download_build(build_identifier, output_dir):
+
+def download_build(build, output_dir):
     """
     Download the artifacts associated with a Koji build.
 
-    :param str/int build_identifier: the string of the builds NVR or the integer of the build ID
+    :param dict build: the build information from koji
     :param str output_dir: the path to download the archives to
-    :return: tuple containing a list of downloaded artifacts and the build information
-    :rtype: (list, dict)
+    :return: a list of downloaded artifacts
+    :rtype: list
     """
     # Make sure the Koji command is installed
     assert_command('koji')
     if not os.path.isdir(output_dir):
         raise RuntimeError(f'The passed in directory of "{output_dir}" does not exist')
 
-    session = get_koji_session()
-    build = session.getBuild(build_identifier)
     if not build:
-        raise RuntimeError(f'The Koji build "{build_identifier}" does not exist')
+        raise RuntimeError(f'The Koji build cannot be None')
 
     # There's no API for this, so it's better to just call the CLI directly
     cmd = ['koji', '--profile', config.koji_profile, 'download-build', str(build['id'])]
@@ -218,7 +220,7 @@ def download_build(build_identifier, output_dir):
                 artifacts.append(file_path)
                 log.info(f'Downloaded {os.path.split(file_path)[-1]}')
 
-    return artifacts, build
+    return artifacts
 
 
 def get_source_of_build(build_info):
