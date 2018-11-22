@@ -54,6 +54,7 @@ def download_build_data(build_identifier, output_dir='/metadata'):
 
     :param str/int build_identifier: the string of the builds NVR or the integer of the build ID
     :param str output_dir: the path to download the brew info to
+    :raises BuildSourceNotFound: when the source can't be determined
     """
     # Import this here to avoid a circular import
     from assayist.processor.base import Analyzer
@@ -61,6 +62,11 @@ def download_build_data(build_identifier, output_dir='/metadata'):
     assert_command('koji')
     koji = get_koji_session()
     build = koji.getBuild(build_identifier)
+    if not build.get('source'):
+        # Sometimes there is no source url on the build but it can be found in the task
+        # request info instead. Try looking there, and if found update the build info
+        # so the analyzers have a nice consistent place to find it.
+        build['source'] = get_source_of_build(build)
     write_file(build, output_dir, Analyzer.BUILD_FILE)
 
     # get task info
@@ -182,7 +188,7 @@ def get_source_of_build(build_info):
     """
     no_source_msg = f'Build {build_info["id"]} has no associated source URL'
     if build_info.get('source'):
-        return re.sub(r'^git\+http', r'http', build_info['source'])
+        return build_info['source']
 
     elif build_info.get('task_id') is None:
         raise BuildSourceNotFound(no_source_msg)
@@ -196,7 +202,7 @@ def get_source_of_build(build_info):
     for value in task_request:
         # Check if the value in the task_request is a git URL
         if isinstance(value, str) and re.match(r'git\+?(http[s]?|ssh)?://', value):
-            return re.sub(r'^git\+http', r'http', value)
+            return value
         # Look for a dictionary in the task_request that may include certain keys that hold the URL
         elif isinstance(value, dict):
             if isinstance(value.get('ksurl'), str):
@@ -223,7 +229,9 @@ def download_source(build_info, output_dir, sources_cmd=None):
     assert_command('git')
     assert_command(sources_cmd[0])
 
-    source_url = get_source_of_build(build_info)
+    # Certain URLs specified in the build's Source field do not specify a correct
+    # combination of protocols that Git understands.
+    source_url = re.sub(r'^git\+http', r'http', build_info['source'])
     log.info(f'Cloning source for {build_info["id"]}')
 
     url, _, commit_id = source_url.partition('#')
