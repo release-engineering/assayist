@@ -172,11 +172,11 @@ def download_build_data(build_identifier, output_dir='/metadata'):
     return build
 
 
-def download_build(build, output_dir):
+def download_build(build_info, output_dir):
     """
     Download the artifacts associated with a Koji build.
 
-    :param dict build: the build information from koji
+    :param dict build_info: the build information from koji
     :param str output_dir: the path to download the archives to
     :return: a list of downloaded artifacts
     :rtype: list
@@ -186,11 +186,11 @@ def download_build(build, output_dir):
     if not os.path.isdir(output_dir):
         raise RuntimeError(f'The passed in directory of "{output_dir}" does not exist')
 
-    if not build:
+    if not build_info:
         raise RuntimeError(f'The Koji build cannot be None')
 
     # There's no API for this, so it's better to just call the CLI directly
-    cmd = ['koji', '--profile', config.koji_profile, 'download-build', str(build['id'])]
+    cmd = ['koji', '--profile', config.koji_profile, 'download-build', str(build_info['id'])]
 
     # Because builds may contain artifacts of different types (e.g. RPMs as well as JARs),
     # cycle through all types of artifacts: RPMs (default), Maven archives (--type maven),
@@ -198,7 +198,7 @@ def download_build(build, output_dir):
     # win).
     build_type_opts = ([], ['--type', 'maven'], ['--type', 'image'])
 
-    log.info(f'Downloading build {build["id"]} from Koji')
+    log.info(f'Downloading build {build_info["id"]} from Koji')
     download_prefix = 'Downloading: '
     artifacts = []
 
