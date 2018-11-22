@@ -42,7 +42,7 @@ for directory in (output_metadata_dir, output_files_dir, unpacked_archives_dir, 
         os.mkdir(directory)
 
 try:
-    utils.download_build_data(build_identifier, output_metadata_dir)
+    build_info = utils.download_build_data(build_identifier, output_metadata_dir)
 except BuildSourceNotFound as exc:
     print(exc, file=sys.stderr)
     # If the source wasn't found, then just exit the script with an exit code of 3. Then the runner
@@ -54,7 +54,7 @@ except BuildTypeNotSupported as exc:
     # unnecessary data. Exit with 0 so that minimal analysis (creating a Build node) continues.
     sys.exit(0)
 
-artifacts, build_info = utils.download_build(build_identifier, output_files_dir)
+artifacts = utils.download_build(build_info, output_files_dir)
 utils.download_source(build_info, output_source_dir)
 utils.unpack_artifacts(artifacts, unpacked_archives_dir)
 
