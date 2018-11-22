@@ -40,12 +40,7 @@ class TestContainerGoAnalyzerRun:
         """Test the core logic in the run method."""
         mock_read_metadata_file.return_value = {
             'id': 774500,
-            'extra': {
-                'container_koji_task_id': 18568951,
-                'image': {
-                    'parent_image_builds': {},
-                },
-            },
+            'type': 'buildContainer',
         }
 
         analyzer = ContainerGoAnalyzer()
@@ -62,12 +57,7 @@ class TestContainerGoAnalyzerRun:
         """Test the run method finishes and returns False when _process_source_code fails."""
         mock_read_metadata_file.return_value = {
             'id': 774500,
-            'extra': {
-                'container_koji_task_id': 18568951,
-                'image': {
-                    'parent_image_builds': {},
-                },
-            },
+            'type': 'buildContainer',
         }
         mock_process_source_code.side_effect = RuntimeError('some Error')
 

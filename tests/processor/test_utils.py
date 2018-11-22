@@ -12,6 +12,7 @@ import pytest
 
 from assayist.processor.base import Analyzer
 from assayist.processor import utils
+from assayist.processor.error import BuildTypeNotSupported, BuildSourceNotFound
 
 
 def test_assert_command():
@@ -38,7 +39,7 @@ def test_download_build_data_full_data(m_write_file, m_get_koji_session, m_asser
     # Setup for a 'full data' test. The actual values of most return values doesn't matter.
     PATH = '/some/path'
     BUILD_INFO = {'task_id': 2, 'id': 1}
-    TASK_INFO = {'a task': 5}
+    TASK_INFO = {'a task': 5, 'method': 'build'}
     URL = 'git+https://example.com/whatever'
     TASK_REQUEST = [URL]
     MAVEN_INFO = {'other': 'stuff'}
@@ -86,11 +87,13 @@ def test_download_build_data_full_data(m_write_file, m_get_koji_session, m_asser
     IMAGE_INFO = {'2': RPM_INFO}
     # The buildroot info should be repeated for each buildroot.
     ALL_BUILDROOT_INFO = {'2': RPM_INFO, '3': RPM_INFO, '4': RPM_INFO}
+    # The build type was added
+    BUILD_INFO['type'] = 'build'
 
     assert m_write_file.call_count == 7
     m_write_file.assert_has_calls([
-        mock.call(BUILD_INFO, PATH, Analyzer.BUILD_FILE),
         mock.call(TASK_INFO, PATH, Analyzer.TASK_FILE),
+        mock.call(BUILD_INFO, PATH, Analyzer.BUILD_FILE),
         mock.call(MAVEN_INFO, PATH, Analyzer.MAVEN_FILE),
         mock.call(RPM_INFO, PATH, Analyzer.RPM_FILE),
         mock.call(ARCHIVE_INFO, PATH, Analyzer.ARCHIVE_FILE),
@@ -106,7 +109,8 @@ def test_download_build_data_empty_data(m_write_file, m_get_koji_session, m_asse
     """Test the download_build_data function with missing data."""
     # Setup for a 'full data' test. The actual values of most return values doesn't matter.
     PATH = '/some/path'
-    BUILD_INFO = {'task_id': None, 'id': 1, 'source': 'http://example.com'}
+    BUILD_INFO = {'task_id': None, 'id': 1, 'source': 'http://example.com', 'extra': {
+        'container_koji_task_id': 123}}
     RPM_INFO = []
     ARCHIVE_INFO = []
 
@@ -137,6 +141,27 @@ def test_download_build_data_empty_data(m_write_file, m_get_koji_session, m_asse
     m_write_file.assert_has_calls([
         mock.call(BUILD_INFO, PATH, Analyzer.BUILD_FILE),
     ])
+
+
+@mock.patch('assayist.processor.utils.assert_command')
+@mock.patch('assayist.processor.utils.get_koji_session')
+@mock.patch('assayist.processor.utils.write_file')
+def test_download_build_unsupported_build_type(m_write_file, m_get_koji_session, m_assert_command):
+    """Test download_build_data function for unsupported build types."""
+    BUILD_INFO = {'task_id': 123, 'id': 1, 'source': 'http://some.url', 'extra': {}}
+    TASK_INFO = {'method': 'randomType'}  # I.e. value not present in Analyzer.SUPPORTED_BUILD_TYPES
+
+    m_koji = mock.Mock()
+    m_koji.getBuild.return_value = BUILD_INFO
+    m_koji.getTaskInfo.return_value = TASK_INFO
+    m_get_koji_session.return_value = m_koji
+
+    with pytest.raises(BuildTypeNotSupported):
+        utils.download_build_data(1, '/some/path')
+
+    # Assert that the brew calls we expect happened.
+    m_koji.getBuild.assert_called_once_with(1)
+    m_koji.getTaskInfo.assert_called_once_with(123)
 
 
 @mock.patch('assayist.processor.utils.assert_command')
@@ -438,3 +463,33 @@ def test_get_source_of_build(mock_session, build_info, task_request, expected):
     """Test that get_source_of_build can find the source of build using heuristics."""
     mock_session.return_value.getTaskRequest.return_value = task_request
     assert utils.get_source_of_build(build_info) == expected
+
+
+@pytest.mark.parametrize('build_info,task_request', [
+    ({'id': 1}, []),  # No build source, no task ID
+    ({'id': 1, 'task_id': 123}, None),  # No build source, empty task request
+    ({'id': 1, 'task_id': 123}, {}),  # No build source, unexpected return value (should be list)
+    ({'id': 1, 'task_id': 123}, {'hello': 'world'}),  # No build source, source not found in dict
+])
+@mock.patch('assayist.processor.utils.get_koji_session')
+def test_get_source_of_build_missing_source(mock_session, build_info, task_request):
+    """Test that get_source_of_build can find the source of build using heuristics."""
+    mock_session.return_value.getTaskRequest.return_value = task_request
+
+    with pytest.raises(BuildSourceNotFound):
+        utils.get_source_of_build(build_info)
+
+
+@pytest.mark.parametrize('build_info,task_info,expected', [
+    ({'extra': None}, {'method': 'build'}, 'build'),
+    ({'extra': None}, {}, None),
+    ({'extra': {}}, {}, None),
+    ({'extra': {'typeinfo': {}}}, {}, None),
+    ({'extra': {'typeinfo': {'module': {'x': 1}}}}, {}, 'module'),
+    ({'extra': {'something': []}}, {}, None),
+    ({'extra': {'container_koji_task_id': 12345}}, {}, 'buildContainer'),
+    ({'extra': {'maven': {'version': 1}}}, {}, 'maven'),
+])
+def test_get_build_type(build_info, task_info, expected):
+    """Test the heuristics of determining the build type in get_build_type()."""
+    assert utils.get_build_type(build_info, task_info) == expected

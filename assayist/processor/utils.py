@@ -12,7 +12,7 @@ import koji
 
 from assayist.processor.configuration import config
 from assayist.processor.logging import log
-from assayist.processor.error import BuildSourceNotFound
+from assayist.processor.error import BuildSourceNotFound, BuildTypeNotSupported
 
 
 def get_koji_session():  # pragma: no cover
@@ -48,6 +48,37 @@ def write_file(data, in_dir, in_file):
         json.dump(data, f)
 
 
+def get_build_type(build_info, task_info):
+    """Use heuristics to determine the type of this build.
+
+    :param build_info: the dict representing the Koji build to analyze
+    :param task_info: the dict representing the Koji task to analyze
+    :return: build type
+    :rtype: str
+    """
+    # If this build has an associated task, return it's method as the build type.
+    if task_info:
+        return task_info['method']
+
+    # Check if the build defines extra attributes.
+    extra = build_info.get('extra')
+    if not extra or not isinstance(extra, dict):
+        return None
+
+    # Check if this is a container build.
+    if extra.get('container_koji_task_id'):
+        return 'buildContainer'
+
+    # Check if this is a PNC maven build.
+    if extra.get('maven'):
+        return 'maven'
+
+    # Check if this is a module build.
+    typeinfo = extra.get('typeinfo')
+    if typeinfo and typeinfo.get('module'):
+        return 'module'
+
+
 def download_build_data(build_identifier, output_dir='/metadata'):
     """
     Download the JSON data associated with a build.
@@ -55,51 +86,64 @@ def download_build_data(build_identifier, output_dir='/metadata'):
     :param str/int build_identifier: the string of the builds NVR or the integer of the build ID
     :param str output_dir: the path to download the brew info to
     :raises BuildSourceNotFound: when the source can't be determined
+    :raises BuildTypeNotSupported: when the build type is not supported for analysis
     """
     # Import this here to avoid a circular import
     from assayist.processor.base import Analyzer
     # Make sure the Koji command is installed
     assert_command('koji')
-    koji = get_koji_session()
-    build = koji.getBuild(build_identifier)
+    koji_session = get_koji_session()
+    build = koji_session.getBuild(build_identifier)
     if not build.get('source'):
         # Sometimes there is no source url on the build but it can be found in the task
         # request info instead. Try looking there, and if found update the build info
         # so the analyzers have a nice consistent place to find it.
         build['source'] = get_source_of_build(build)
-    write_file(build, output_dir, Analyzer.BUILD_FILE)
 
-    # get task info
+    # Get task info
+    task = None
     if 'task_id' in build and build['task_id']:
-        task = koji.getTaskInfo(build['task_id'])
+        task = koji_session.getTaskInfo(build['task_id'])
         write_file(task, output_dir, Analyzer.TASK_FILE)
 
-    # get maven info
-    maven = koji.getMavenBuild(build_identifier)
+    # Determine the build type and add it to build metadata so that analyzers can easily fetch it
+    # without having to perform the heuristic below themselves.
+    build_type = get_build_type(build, task)
+    build['type'] = build_type
+    write_file(build, output_dir, Analyzer.BUILD_FILE)
+
+    # Exit early if the type of this build is not supported since none of the analyzers will do
+    # anything meaningful with the data downloaded below anyway.
+    if build_type not in Analyzer.SUPPORTED_BUILD_TYPES:
+        raise BuildTypeNotSupported(
+            f'Build {build_identifier} type "{build_type}" is not supported for analysis')
+
+    # Get maven info
+    maven = koji_session.getMavenBuild(build_identifier)
     if maven:
         write_file(maven, output_dir, Analyzer.MAVEN_FILE)
 
-    # get rpms
-    rpms = koji.listRPMs(build_identifier)
+    # Get list of RPMs
+    rpms = koji_session.listRPMs(build_identifier)
     if rpms:
         write_file(rpms, output_dir, Analyzer.RPM_FILE)
 
-    # get archives
-    archives = koji.listArchives(build_identifier)
+    # Get list of archives
+    archives = koji_session.listArchives(build_identifier)
     if archives:
         write_file(archives, output_dir, Analyzer.ARCHIVE_FILE)
 
-    # get rpms in each image
+    # Get list of RPMs in each image
     image_rpms = {}
     for archive in archives:
         if 'btype' in archive and archive['btype'] == 'image':
             aid = archive['id']
-            image_rpms[aid] = koji.listRPMs(imageID=aid)
+            image_rpms[aid] = koji_session.listRPMs(imageID=aid)
 
     if image_rpms:
         write_file(image_rpms, output_dir, Analyzer.IMAGE_RPM_FILE)
 
-    # get rpms in the buildroots
+    # Get list of RPMs in the buildroots
     buildroot_ids = set()
     for artifact in rpms + archives:
         bid = artifact['buildroot_id']
@@ -108,16 +152,16 @@ def download_build_data(build_identifier, output_dir='/metadata'):
 
     buildroot_components = {}
     for bid in sorted(buildroot_ids):
-        buildroot_components[bid] = [c['rpm_id'] for c in koji.getBuildrootListing(bid)]
+        buildroot_components[bid] = [c['rpm_id'] for c in koji_session.getBuildrootListing(bid)]
 
     for bid, rpm_ids in buildroot_components.items():
         # getBuildrootListing() does not provide full RPM information to be able to create an
         # artifact so call getRPM on each of the RPMs in a single call to get it.
-        koji.multicall = True
+        koji_session.multicall = True
         for rpm_id in rpm_ids:
-            koji.getRPM(rpm_id)
+            koji_session.getRPM(rpm_id)
 
-        rpm_infos = koji.multiCall()
+        rpm_infos = koji_session.multiCall()
         buildroot_components[bid] = [rpm_info[0] for rpm_info in rpm_infos]
 
     if buildroot_components:

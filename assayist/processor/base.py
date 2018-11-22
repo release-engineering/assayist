@@ -71,6 +71,22 @@ class Analyzer(ABC):
     IMAGE_RPM_FILE = 'image-rpms.json'
     BUILDROOT_FILE = 'buildroot-components.json'
 
+    # The following is a list of build types (indicated by the task method linked to the build),
+    # for which we support running all of the analyzers. All other build types will have their
+    # Build node created but further analysis will be skipped. This list may be extended with
+    # additional types when we can assure that they can be accurately analyzed and their artifacts
+    # correctly processed.
+    #
+    # When a new type is added, ensure the _construct_and_save_component() function is updated to
+    # handle the new type.
+    CONTAINER_BUILD_TYPE = 'buildContainer'
+    SUPPORTED_BUILD_TYPES = (
+        'build',  # RPM builds
+        'wrapperRPM',  # RPM builds used in other builds
+        'maven',  # Maven builds
+        CONTAINER_BUILD_TYPE,  # Container image builds
+    )
+
     def __init__(self, input_dir='/'):
         """
         Initialize the Analyzer class.
@@ -343,42 +359,6 @@ class Analyzer(ABC):
             self.input_dir, self.UNPACKED_CONTAINER_LAYER_DIR,
             container_archive['filename'])
         self.claim_file(container_layer_dir, path_in_container)
-
-    @staticmethod
-    def is_container_build(build_info):
-        """
-        Perform a heuristic evaluation to determine if this is a container build.
-
-        :param dict build_info: the Koji build info to examine
-        :returns: a boolean determining if the build is a container
-        :rtype: bool
-        """
-        # Protect against the value being `None` or something else unexpected
-        if not isinstance(build_info['extra'], dict):
-            return False
-        elif not build_info['extra'].get('container_koji_task_id'):
-            return False
-        else:
-            return True
-
-    @staticmethod
-    def is_module_build(build_info):
-        """
-        Perform a heuristic evaluation to determine if this is a module build.
-
-        :param dict build_info: the Koji build info to examine
-        :returns: a boolean determining if the build is a module
-        :rtype: bool
-        """
-        # Protect against the value being `None` or something else unexpected
-        extra = build_info.get('extra')
-        if not extra or not isinstance(extra, dict):
-            return False
-        typeinfo = extra.get('typeinfo')
-        if not typeinfo or not typeinfo.get('module'):
-            return False
-        else:
-            return True
 
     @staticmethod
     def is_container_archive(archive):

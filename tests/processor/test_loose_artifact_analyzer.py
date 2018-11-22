@@ -17,7 +17,7 @@ RPM_INFO = {
     'name': 'python-django',
     'payloadhash': '217ee68c509731aef889251cae1c4b10',
     'release': '1.el7ost',
-    'version': '1.8.11'
+    'version': '1.8.11',
 }
 
 ARCHIVE_INFO = {
@@ -62,7 +62,7 @@ def test_rpm_on_container_layer(m_read_metadata_file):
     container = ArtifactFactory.create(type_='container')
     build.artifacts.connect(container)
 
-    m_read_metadata_file.return_value = {'id': 1}
+    m_read_metadata_file.return_value = {'id': 1, 'type': 'buildContainer'}
 
     m_koji = mock.Mock()
     m_koji.multiCall.return_value = [[RPM_INFO]]
@@ -108,7 +108,7 @@ def test_archives_on_container_layer(m_read_metadata_file):
     container = ArtifactFactory.create(type_='container')
     build.artifacts.connect(container)
 
-    m_read_metadata_file.return_value = {'id': 1}
+    m_read_metadata_file.return_value = {'id': 1, 'type': 'buildContainer'}
 
     m_koji = mock.Mock()
     m_koji.multiCall.return_value = [[[ARCHIVE_INFO]]]
