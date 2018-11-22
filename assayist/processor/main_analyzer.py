@@ -65,7 +65,7 @@ class MainAnalyzer(Analyzer):
         :return: A tuple of component and version
         :rtype: tuple(Component, str)
         """
-        if build_type == 'build':  # rpm build
+        if build_type in self.SUPPORTED_RPM_BUILD_TYPES:  # rpm build
             cnamespace = 'redhat'
             cname = build_info['name']
             ctype = 'rpm'
@@ -73,14 +73,14 @@ class MainAnalyzer(Analyzer):
             if 'epoch' in build_info and build_info['epoch']:
                 epoch = build_info['epoch']
             cversion = '%s-%s-%s' % (epoch, build_info['version'], build_info['release'])
-        elif build_type == 'maven':
+        elif build_type == self.MAVEN_BUILD_TYPE:
             # If it's a maven build then the maven info file should exist with the info we need.
             maven_info = self.read_metadata_file(self.MAVEN_FILE)
             cnamespace = maven_info['group_id']
             cname = maven_info['artifact_id']
             cversion = maven_info['version']
             ctype = 'java'
-        elif build_type == 'buildContainer':
+        elif build_type == self.CONTAINER_BUILD_TYPE:
             # Theoretically this should exist for buildContainer builds.
             # Get the repo / commit identifier and use it to extract namespace and name.
             pulls = build_info.get('extra', {}).get('image', {}).get('index', {}).get('pull', [])
@@ -105,45 +105,27 @@ class MainAnalyzer(Analyzer):
         :raises AnalysisFailure: if the analyzer completed with errors
         """
         build_info = self.read_metadata_file(self.BUILD_FILE)
-        task_info = self.read_metadata_file(self.TASK_FILE)
 
-        build_type = None
-        if task_info:
-            build_type = task_info['method']
-        elif self.is_container_build(build_info):
-            build_type = 'buildContainer'
-        elif self.is_module_build(build_info):
-            build_type = 'module'
-
-        # construct the build object
+        # Construct the Build object
         build = content.Build.get_or_create({
             'id_': build_info['id'],
-            'type_': build_type})[0]
+            'type_': build_info['type']})[0]
 
-        # Module builds don't really have a source or a component, even though they say they do.
-        # While module builds do have a version, the information there is not very useful.
-        # Modules builds have the same source url as the related rpm builds but some
-        # automatically-generated version (including partially a timestamp), where the rpm
-        # versions are actually more informative. Since version is not a required attribute
-        # on a SourceLocation this version would end up conflicting with / overwriting the
-        # RPM version. Similarly they don't /really/ have a Component, the rpm builds do.
-        # And the only artifacts they provide are text metadata files. Let's just skip
-        # everything else.
-        if build_type == 'module':
+        if build_info['type'] not in self.SUPPORTED_BUILD_TYPES:
             return
 
-        # construct the component
-        component, canonical_version = self._construct_and_save_component(build_type,
-                                                                          build_info)
+        # Construct the component
+        component, canonical_version = self._construct_and_save_component(
+            build_info['type'], build_info)
 
-        # construct the local SourceLocation
-        source = build_info['source']
+        # Construct the local SourceLocation
+        build_source = build_info['source']
         local_source_location = self.create_or_update_source_location(
-            source, component, canonical_version)
+            build_source, component, canonical_version)
 
         self.conditional_connect(build.source_location, local_source_location)
 
-        # record the rpms associated with this build
+        # Record the rpms associated with this build
         rpms_info = self.read_metadata_file(self.RPM_FILE)
         for rpm_info in rpms_info:
             buildroot_id = rpm_info['buildroot_id']
@@ -151,7 +133,7 @@ class MainAnalyzer(Analyzer):
             self.conditional_connect(rpm.build, build)
             self._map_buildroot_to_artifact(buildroot_id, rpm)
 
-        # record the artifacts
+        # Record the artifacts
         archives_info = self.read_metadata_file(self.ARCHIVE_FILE)
         for archive_info in archives_info:
             if archive_info['btype'] == 'log':

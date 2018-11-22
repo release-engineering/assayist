@@ -17,27 +17,6 @@ class DummyAnalyzer(BaseAnalyzer):
         return
 
 
-@pytest.mark.parametrize('build_info,expected', [
-    ({'extra': None}, False),
-    ({'extra': {}}, False),
-    ({'extra': {'typeinfo': {}}}, False),
-    ({'extra': {'typeinfo': {'module': {'x': 1}}}}, True),
-])
-def test_is_module_build(build_info, expected):
-    """Test that the is_module_build method properly parses the passed-in build info."""
-    assert BaseAnalyzer.is_module_build(build_info) is expected
-
-
-@pytest.mark.parametrize('build_info,expected', [
-    ({'extra': None}, False),
-    ({'extra': {'something': []}}, False),
-    ({'extra': {'container_koji_task_id': 12345}}, True),
-])
-def test_is_container_build(build_info, expected):
-    """Test that the is_container_build method properly parses the passed-in build info."""
-    assert BaseAnalyzer.is_container_build(build_info) is expected
-
-
 def test_claim_container_file():
     """Test that the claim_container_file method does nothing on a directory and deletes a file."""
     container_file_name = 'docker-image-123456'

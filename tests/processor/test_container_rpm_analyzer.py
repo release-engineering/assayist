@@ -135,7 +135,8 @@ def test_run(mock_c_r_files, mock_p_e_rpms, mock_get_diff, mock_read_md_file):
     mock_read_md_file.side_effect = [
         {
             'id': 1234,
-            'extra': {'container_koji_task_id': 123456, 'image': {'parent_build_id': 22}}
+            'extra': {'container_koji_task_id': 123456, 'image': {'parent_build_id': 22}},
+            'type': 'buildContainer',
         },
         [
             {
@@ -176,7 +177,8 @@ def test_run_parent_image(mock_c_r_files, mock_p_e_rpms, mock_get_diff, mock_rea
     mock_read_md_file.side_effect = [
         {
             'id': 1234,
-            'extra': {'container_koji_task_id': 123456, 'image': {}}
+            'extra': {'container_koji_task_id': 123456, 'image': {}},
+            'type': 'buildContainer',
         },
         [
             {

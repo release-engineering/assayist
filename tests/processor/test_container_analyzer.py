@@ -39,6 +39,7 @@ class TestContainerAnalyzerRun:
                     'parent_image_builds': {},
                 },
             },
+            'type': 'buildContainer',
         }
 
         analyzer = ContainerAnalyzer()
@@ -66,6 +67,7 @@ class TestContainerAnalyzerRun:
                     },
                 },
             },
+            'type': 'buildContainer',
         }
 
         arch_to_artifacts = {arch: ArtifactFactory.create(type_='container', architecture=arch)
@@ -109,6 +111,7 @@ class TestContainerAnalyzerRun:
                     },
                 },
             },
+            'type': 'buildContainer',
         }
 
         arch_to_embedded_artifacts = {

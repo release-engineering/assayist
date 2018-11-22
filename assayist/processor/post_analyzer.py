@@ -28,7 +28,7 @@ class PostAnalyzer(Analyzer):
         build_info = self.read_metadata_file(self.BUILD_FILE)
         build_id = build_info['id']
 
-        if not self.is_container_build(build_info):
+        if build_info['type'] != self.CONTAINER_BUILD_TYPE:
             # Post analysis consists of recording unknown files, which only makes sense for
             # container builds. RPM or maven builds will not include any unindentified files.
             log.info(f'Skipping build {build_id} because the build is not a container')

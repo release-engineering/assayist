@@ -17,7 +17,7 @@ def test_run_one_unknown_file(m_checksum, m_read_metadata_file):
     container = ArtifactFactory.create(type_='container')
     m_read_metadata_file.return_value = {
         'id': 1234,
-        'extra': {'container_koji_task_id': 123456, 'image': {}},
+        'type': 'buildContainer',
     }
     m_checksum.return_value = 'cafebabe'
 

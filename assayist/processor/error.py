@@ -1,6 +1,12 @@
 # SPDX-License-Identifier: GPL-3.0+
 
 
+class BuildTypeNotSupported(NotImplementedError):
+    """Signify that a build type is not yet properly handled by analyzers."""
+
+    pass
+
+
 class BuildSourceNotFound(RuntimeError):
     """Signify that the source of a Koji build couldn't be determined."""
 

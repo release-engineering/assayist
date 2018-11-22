@@ -8,7 +8,7 @@ import sys
 
 from assayist.processor import utils
 from assayist.processor.base import Analyzer
-from assayist.processor.error import BuildSourceNotFound
+from assayist.processor.error import BuildSourceNotFound, BuildTypeNotSupported
 
 
 # Always set the logging to INFO
@@ -43,11 +43,16 @@ for directory in (output_metadata_dir, output_files_dir, unpacked_archives_dir, 
 
 try:
     utils.download_build_data(build_identifier, output_metadata_dir)
-except BuildSourceNotFound as e:
-    print(e, file=sys.stderr)
+except BuildSourceNotFound as exc:
+    print(exc, file=sys.stderr)
     # If the source wasn't found, then just exit the script with an exit code of 3. Then the runner
     # of the script can determine what to do from here.
     sys.exit(3)
+except BuildTypeNotSupported as exc:
+    print(exc)
+    # If the build type is not supported, exit early so that we don't download a lot of
+    # unnecessary data. Exit with 0 so that minimal analysis (creating a Build node) continues.
+    sys.exit(0)
 
 artifacts, build_info = utils.download_build(build_identifier, output_files_dir)
 utils.download_source(build_info, output_source_dir)

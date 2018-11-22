@@ -449,11 +449,14 @@ def test_construct_and_save_component():
 def read_metadata_test_data(self, FILE):
     """Mock out this function so we can use test data."""
     if FILE == base.Analyzer.BUILD_FILE:
-        return {'id': 759153,
-                'source': SOURCE_URL,
-                'name': 'virt-api-container',
-                'version': '1.2',
-                'release': '4'}
+        return {
+            'id': 759153,
+            'source': SOURCE_URL,
+            'name': 'virt-api-container',
+            'version': '1.2',
+            'release': '4',
+            'type': 'buildContainer',
+        }
     if FILE == base.Analyzer.TASK_FILE:
         return {'method': 'buildContainer'}
     if FILE == base.Analyzer.MAVEN_FILE:
@@ -554,3 +557,20 @@ def test_extract_component_name_and_namespace(input, expected_output):
     """Test the _extract_component_name_and_namespace() function."""
     analyzer = main_analyzer.MainAnalyzer()
     assert analyzer._extract_component_name_and_namespace(input) == expected_output
+
+
+@mock.patch('assayist.processor.base.Analyzer.read_metadata_file')
+def test_unsupported_build_type(m_read_metadata_file):
+    """Test main Analyzer on unsupported build type."""
+    m_read_metadata_file.return_value = {'id': 123, 'type': 'module'}  # Unsupported build type
+
+    analyzer = main_analyzer.MainAnalyzer()
+    analyzer.run()
+
+    assert m_read_metadata_file.call_count == 1
+
+    # Check that a Build node was created but nothing else
+    build = Build.nodes.get(id_=123)
+    assert build.type_ == 'module'
+    assert len(build.artifacts) == 0
+    assert len(build.source_location) == 0

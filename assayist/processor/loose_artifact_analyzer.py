@@ -39,10 +39,11 @@ class LooseArtifactAnalyzer(Analyzer):
         """
         build_info = self.read_metadata_file(self.BUILD_FILE)
         build_id = build_info['id']
+        build_type = build_info['type']
 
-        # There's nothing we care about in module builds, exit early.
-        if self.is_module_build(build_info):
-            log.info(f"Skipping build {build_id} because it's a module build")
+        if build_type not in self.SUPPORTED_BUILD_TYPES:
+            log.info(f'Skipping build {build_id} because the build type "{build_type}" '
+                     f'is not supported')
             return
 
         # Dir of all unpacked content to search for RPM files
@@ -133,7 +134,7 @@ class LooseArtifactAnalyzer(Analyzer):
                                      f'embedded in {archive} in build {build_id}')
                             artifact_build = content.Build.get_or_create({
                                 'id_': artifact_build_id,
-                                'type_': 'build' if is_rpm else artifact_info['btype'],
+                                'type_': 'build' if is_rpm else artifact_info['btype'],  # TODO bug!
                             })[0]
 
                             if is_rpm:
