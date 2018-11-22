@@ -80,11 +80,18 @@ class Analyzer(ABC):
     # When a new type is added, ensure the _construct_and_save_component() function is updated to
     # handle the new type.
     CONTAINER_BUILD_TYPE = 'buildContainer'
+    RPM_BUILD_TYPE = 'build'
+    WRAPPER_RPM_BUILD_TYPE = 'wrapperRPM'  # RPM builds used in other builds
+    MAVEN_BUILD_TYPE = 'maven'
     SUPPORTED_BUILD_TYPES = (
-        'build',  # RPM builds
-        'wrapperRPM',  # RPM builds used in other builds
-        'maven',  # Maven builds
-        CONTAINER_BUILD_TYPE,  # Container image builds
+        CONTAINER_BUILD_TYPE,
+        RPM_BUILD_TYPE,
+        WRAPPER_RPM_BUILD_TYPE,
+        MAVEN_BUILD_TYPE,
+    )
+    SUPPORTED_RPM_BUILD_TYPES = (
+        RPM_BUILD_TYPE,
+        WRAPPER_RPM_BUILD_TYPE,
     )
 
     def __init__(self, input_dir='/'):

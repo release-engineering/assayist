@@ -65,7 +65,7 @@ class MainAnalyzer(Analyzer):
         :return: A tuple of component and version
         :rtype: tuple(Component, str)
         """
-        if build_type == 'build':  # rpm build
+        if build_type in self.SUPPORTED_RPM_BUILD_TYPES:  # rpm build
             cnamespace = 'redhat'
             cname = build_info['name']
             ctype = 'rpm'
@@ -73,14 +73,14 @@ class MainAnalyzer(Analyzer):
             if 'epoch' in build_info and build_info['epoch']:
                 epoch = build_info['epoch']
             cversion = '%s-%s-%s' % (epoch, build_info['version'], build_info['release'])
-        elif build_type == 'maven':
+        elif build_type == self.MAVEN_BUILD_TYPE:
             # If it's a maven build then the maven info file should exist with the info we need.
             maven_info = self.read_metadata_file(self.MAVEN_FILE)
             cnamespace = maven_info['group_id']
             cname = maven_info['artifact_id']
             cversion = maven_info['version']
             ctype = 'java'
-        elif build_type == 'buildContainer':
+        elif build_type == self.CONTAINER_BUILD_TYPE:
             # Theoretically this should exist for buildContainer builds.
             # Get the repo / commit identifier and use it to extract namespace and name.
             pulls = build_info.get('extra', {}).get('image', {}).get('index', {}).get('pull', [])
