@@ -85,7 +85,7 @@ def set_component_names(c_name, c_type, c_namespace='', alternatives=None):
             component.source_locations.connect(sl)
 
         # Delete this component since all its information is now stored in the first component
-        log.warn(f'Deleting the component "{c}" since it was merged into "{component}"')
+        log.warning(f'Deleting the component "{c}" since it was merged into "{component}"')
         c.delete()
 
     component.save()
