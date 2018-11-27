@@ -38,20 +38,21 @@ class PostAnalyzer(Analyzer):
         unpacked_container_layer = os.path.join(self.input_dir, self.UNPACKED_CONTAINER_LAYER_DIR)
 
         for archive in os.listdir(unpacked_container_layer):
+            path_to_archive = os.path.join(unpacked_container_layer, archive)
+            # Assume that the artifact being analyzed was created by the main analyzer.
+            archive_obj = content.Artifact.nodes.get(filename=archive)
+
             search_path = os.path.join(unpacked_container_layer, '**')
             for unknown_file in glob.iglob(search_path, recursive=True):
                 if not os.path.isfile(unknown_file):
                     continue
 
-                path_to_archive = os.path.join(unpacked_container_layer, archive)
                 path, filename = os.path.split(os.path.relpath(unknown_file, path_to_archive))
 
                 if any(path.startswith(ignored_dir) for ignored_dir in IGNORED_DIRS):
                     continue
 
-                # Assume that the artifact being analyzed was created by the main analyzer.
-                archive_obj = content.Artifact.nodes.get(filename=archive)
-
+                log.info(f'Found unknown file: /{path}/{filename}')
                 unknown_file = content.UnknownFile.get_or_create({
                     'checksum': self.checksum(unknown_file),
                     'filename': filename,
