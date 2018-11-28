@@ -42,7 +42,7 @@ class PostAnalyzer(Analyzer):
             # Assume that the artifact being analyzed was created by the main analyzer.
             archive_obj = content.Artifact.nodes.get(filename=archive)
 
-            search_path = os.path.join(unpacked_container_layer, '**')
+            search_path = os.path.join(path_to_archive, '**')
             for unknown_file in glob.iglob(search_path, recursive=True):
                 if not os.path.isfile(unknown_file):
                     continue
