@@ -55,7 +55,7 @@ class PostAnalyzer(Analyzer):
                 if any(path.startswith(ignored_dir) for ignored_dir in IGNORED_DIRS):
                     continue
 
-                log.info(f'Found unknown file: /{path}/{filename}')
+                log.info(f'Found unknown file in {archive}: /{path}/{filename}')
                 unknown_file = content.UnknownFile.get_or_create({
                     'checksum': self.checksum(unknown_file),
                     'filename': filename,
