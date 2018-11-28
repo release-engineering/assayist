@@ -13,6 +13,12 @@ class BuildSourceNotFound(RuntimeError):
     pass
 
 
+class BuildInvalidState(RuntimeError):
+    """Signify that a build is in a non-complete state."""
+
+    pass
+
+
 class AnalysisFailure(RuntimeError):
     """Signify that an Analyzer completed its analysis but wasn't completely successful."""
 

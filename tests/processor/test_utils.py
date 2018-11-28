@@ -7,12 +7,13 @@ import shutil
 import subprocess
 import tarfile
 
+import koji
 import mock
 import pytest
 
-from assayist.processor.base import Analyzer
 from assayist.processor import utils
-from assayist.processor.error import BuildTypeNotSupported, BuildSourceNotFound
+from assayist.processor.base import Analyzer
+from assayist.processor.error import BuildTypeNotSupported, BuildSourceNotFound, BuildInvalidState
 
 
 def test_assert_command():
@@ -38,7 +39,7 @@ def test_download_build_data_full_data(m_write_file, m_get_koji_session, m_asser
     """Test the download_build_data function with all available data."""
     # Setup for a 'full data' test. The actual values of most return values doesn't matter.
     PATH = '/some/path'
-    BUILD_INFO = {'task_id': 2, 'id': 1}
+    BUILD_INFO = {'task_id': 2, 'id': 1, 'state': koji.BUILD_STATES['COMPLETE']}
     TASK_INFO = {'a task': 5, 'method': 'build'}
     URL = 'git+https://example.com/whatever'
     TASK_REQUEST = [URL]
@@ -110,7 +111,7 @@ def test_download_build_data_empty_data(m_write_file, m_get_koji_session, m_asse
     # Setup for a 'full data' test. The actual values of most return values doesn't matter.
     PATH = '/some/path'
     BUILD_INFO = {'task_id': None, 'id': 1, 'source': 'http://example.com', 'extra': {
-        'container_koji_task_id': 123}}
+        'container_koji_task_id': 123}, 'state': koji.BUILD_STATES['COMPLETE']}
     RPM_INFO = []
     ARCHIVE_INFO = []
 
@@ -148,7 +149,8 @@ def test_download_build_data_empty_data(m_write_file, m_get_koji_session, m_asse
 @mock.patch('assayist.processor.utils.write_file')
 def test_download_build_unsupported_build_type(m_write_file, m_get_koji_session, m_assert_command):
     """Test download_build_data function for unsupported build types."""
-    BUILD_INFO = {'task_id': 123, 'id': 1, 'source': 'http://some.url', 'extra': {}}
+    BUILD_INFO = {'task_id': 123, 'id': 1, 'source': 'http://some.url', 'extra': {},
+                  'state': koji.BUILD_STATES['COMPLETE']}
     TASK_INFO = {'method': 'randomType'}  # I.e. value not present in Analyzer.SUPPORTED_BUILD_TYPES
 
     m_koji = mock.Mock()
@@ -162,6 +164,23 @@ def test_download_build_unsupported_build_type(m_write_file, m_get_koji_session,
     # Assert that the brew calls we expect happened.
     m_koji.getBuild.assert_called_once_with(1)
     m_koji.getTaskInfo.assert_called_once_with(123)
+
+
+@mock.patch('assayist.processor.utils.assert_command')
+@mock.patch('assayist.processor.utils.get_koji_session')
+def test_download_build_invalid_state(m_get_koji_session, m_assert_command):
+    """Test download_build_data function for invalid build state."""
+    BUILD_INFO = {'task_id': 123, 'id': 1, 'state': koji.BUILD_STATES['DELETED']}
+
+    m_koji = mock.Mock()
+    m_koji.getBuild.return_value = BUILD_INFO
+    m_get_koji_session.return_value = m_koji
+
+    with pytest.raises(BuildInvalidState):
+        utils.download_build_data(1, '/some/path')
+
+    # Assert that the brew calls we expect happened.
+    m_koji.getBuild.assert_called_once_with(1)
 
 
 @mock.patch('assayist.processor.utils.assert_command')
