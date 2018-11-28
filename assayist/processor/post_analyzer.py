@@ -13,6 +13,9 @@ from assayist.processor.logging import log
 # unpacked content.
 IGNORED_DIRS = (
     'var/lib/yum/',  # Yum ghost files
+    'var/log/',  # Log files
+    'var/cache/',  # Cache files
+    'var/spool/',  # Spool data
 )
 
 
