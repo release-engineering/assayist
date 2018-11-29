@@ -12,7 +12,7 @@ import koji
 
 from assayist.processor.configuration import config
 from assayist.processor.logging import log
-from assayist.processor.error import BuildSourceNotFound, BuildTypeNotSupported
+from assayist.processor.error import BuildSourceNotFound, BuildTypeNotSupported, BuildInvalidState
 
 
 def get_koji_session():  # pragma: no cover
@@ -96,6 +96,11 @@ def download_build_data(build_identifier, output_dir='/metadata'):
     assert_command('koji')
     koji_session = get_koji_session()
     build = koji_session.getBuild(build_identifier)
+
+    state = build.get('state')
+    if state != koji.BUILD_STATES['COMPLETE']:
+        raise BuildInvalidState(f'Build {build_identifier} state is {state}; skipping analysis')
+
     if not build.get('source'):
         # Sometimes there is no source url on the build but it can be found in the task
         # request info instead. Try looking there, and if found update the build info

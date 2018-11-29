@@ -8,7 +8,7 @@ import sys
 
 from assayist.processor import utils
 from assayist.processor.base import Analyzer
-from assayist.processor.error import BuildSourceNotFound, BuildTypeNotSupported
+from assayist.processor.error import BuildSourceNotFound, BuildTypeNotSupported, BuildInvalidState
 
 
 # Always set the logging to INFO
@@ -53,6 +53,11 @@ except BuildTypeNotSupported as exc:
     # If the build type is not supported, exit early so that we don't download a lot of
     # unnecessary data. Exit with 0 so that minimal analysis (creating a Build node) continues.
     sys.exit(0)
+except BuildInvalidState as exc:
+    print(exc, file=sys.stderr)
+    # If a build is not in a valid state, exit early since processing a, for example,
+    # deleted build is useless.
+    sys.exit(3)
 
 artifacts = utils.download_build(build_info, output_files_dir)
 utils.download_source(build_info, output_source_dir)
