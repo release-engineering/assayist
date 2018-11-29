@@ -13,6 +13,9 @@ from assayist.processor.logging import log
 # unpacked content.
 IGNORED_DIRS = (
     'var/lib/yum/',  # Yum ghost files
+    'var/log/',  # Log files
+    'var/cache/',  # Cache files
+    'var/spool/',  # Spool data
 )
 
 
@@ -42,7 +45,7 @@ class PostAnalyzer(Analyzer):
             # Assume that the artifact being analyzed was created by the main analyzer.
             archive_obj = content.Artifact.nodes.get(filename=archive)
 
-            search_path = os.path.join(unpacked_container_layer, '**')
+            search_path = os.path.join(path_to_archive, '**')
             for unknown_file in glob.iglob(search_path, recursive=True):
                 if not os.path.isfile(unknown_file):
                     continue
@@ -52,7 +55,7 @@ class PostAnalyzer(Analyzer):
                 if any(path.startswith(ignored_dir) for ignored_dir in IGNORED_DIRS):
                     continue
 
-                log.info(f'Found unknown file: /{path}/{filename}')
+                log.info(f'Found unknown file in {archive}: /{path}/{filename}')
                 unknown_file = content.UnknownFile.get_or_create({
                     'checksum': self.checksum(unknown_file),
                     'filename': filename,
