@@ -305,6 +305,10 @@ def download_source(build_info, output_dir, sources_cmd=None):
     _, error_output = process.communicate()
     error_output = error_output.decode('utf-8')
     if process.returncode != 0:
+        if 'Could not parse object' in error_output:
+            raise BuildSourceNotFound(
+                f'Commit {commit_id} was not found in {source_url} in build {build_info["id"]}'
+            )
         raise RuntimeError(f'The command "{" ".join(cmd)}" failed with: {error_output}')
 
     log.info(f'Downloading sources for {build_info["id"]}')
