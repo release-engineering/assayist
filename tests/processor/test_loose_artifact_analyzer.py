@@ -105,6 +105,7 @@ def test_files_to_examine():
         create_test_archive(True, 'another', 'nested', 'path', 'thing.zip')
         create_test_archive(True, 'another', 'nested', 'path', 'thing.tar.gz')
         create_test_archive(False, 'another', 'nested', 'path', 'thing.csv')
+        create_test_archive(True, 'path', 'with', 'weird', 'dirname.jar', 'thing.kar')
 
         analyzer = LooseArtifactAnalyzer(temp_dir)
         found_files = set()

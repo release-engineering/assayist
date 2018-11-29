@@ -25,7 +25,7 @@ class LooseArtifactAnalyzer(Analyzer):
     dependency management and debugging a lot simpler.
 
     The question on what to do with artifacts found embedded in the source dir is a good one.
-    The schema does not currently alow for embedding artifacts in a SourceLocation. Instead
+    The schema does not currently allow for embedding artifacts in a SourceLocation. Instead
     the most reasonable (and safe) thing is that is consistent with our existing schema /
     queries is to assume that artifacts found embedded in the source are in fact embedded
     in every one of the build archives.
@@ -171,7 +171,8 @@ class LooseArtifactAnalyzer(Analyzer):
         for extension in self.FILE_EXTENSIONS:
             search_path = os.path.join(path_to_archive, '**/*.' + extension)
             for loose_artifact in glob.iglob(search_path, recursive=True):
-                yield loose_artifact
+                if os.path.isfile(loose_artifact):
+                    yield loose_artifact
 
     def add_to_and_maybe_execute_batch(self, loose_artifact, path_to_archive, claim=False):
         """
