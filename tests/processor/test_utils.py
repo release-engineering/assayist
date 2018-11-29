@@ -226,19 +226,34 @@ def test_download_build(m_popen, m_assert_command):
     assert m_popen.call_count == 3
 
 
-@pytest.mark.parametrize('source_url, expected_protocol', [
-    ('git://pkgs.com/containers/rsyslog#4a4109c3e85908b6899b1aa291570f7c7b5a0cb5', 'git'),
-    ('git://pkgs.com/containers/rsyslog?rhel#4a4109c3e85908b6899b1aa291570f7c7b5a0cb5', 'git'),
-    ('git+http://pkgs.com/containers/rsyslog#4a4109c3e85908b6899b1aa291570f7c7b5a0cb5', 'http'),
-    ('git+https://pkgs.com/containers/rsyslog#4a4109c3e85908b6899b1aa291570f7c7b5a0cb5', 'https'),
+@pytest.mark.parametrize('url, expected_values', [
+    ('git://pkgs.com/containers/rsyslog#4a4109',
+     ('git://pkgs.com/containers/rsyslog', '4a4109')),
+    ('git://pkgs.com/containers/rsyslog?rhel#4a4109',
+     ('git://pkgs.com/containers/rsyslog', '4a4109')),
+    ('git+http://pkgs.com/containers/rsyslog#4a4109',
+     ('http://pkgs.com/containers/rsyslog', '4a4109')),
+    ('git+https://pkgs.com/containers/rsyslog#4a4109',
+     ('https://pkgs.com/containers/rsyslog', '4a4109')),
+    ('git+http://code.engineering.com/gerrit/hello/world.git#rel.1.2.3',
+     ('https://code.engineering.com/gerrit/hello/world.git', 'rel.1.2.3')),
+    ('git+https://code.engineering.com/gerrit/hello/world.git#rel.1.2.3',
+     ('https://code.engineering.com/gerrit/hello/world.git', 'rel.1.2.3')),
+    ('git+ssh://user@code.engineering.com:22/hello/world.git#rel.1.2.3',
+     ('https://code.engineering.com/gerrit/hello/world.git', 'rel.1.2.3')),
 ])
+def test_parse_source_url(url, expected_values):
+    """Test the parse_source_url function."""
+    assert utils.parse_source_url(url) == expected_values
+
+
 @mock.patch('assayist.processor.utils.assert_command')
 @mock.patch('subprocess.Popen')
-def test_download_source(m_popen, m_assert_command, source_url, expected_protocol):
+def test_download_source(m_popen, m_assert_command):
     """Test the download_source function."""
     build_info = {
         'id': 12345,
-        'source': source_url,
+        'source': 'git://pkgs.com/containers/rsyslog#4a4109c3e85908b6899b1aa291570f7c7b5a0cb5',
     }
 
     m_process = mock.Mock()
@@ -252,9 +267,8 @@ def test_download_source(m_popen, m_assert_command, source_url, expected_protoco
     assert m_process.communicate.call_count == 3
 
     m_popen.assert_has_calls([
-        mock.call(['git', 'clone', expected_protocol + '://pkgs.com/containers/rsyslog',
-                  '/some/path'], cwd='/some/path', stdout=subprocess.DEVNULL,
-                  stderr=subprocess.PIPE),
+        mock.call(['git', 'clone', 'git://pkgs.com/containers/rsyslog', '/some/path'],
+                  cwd='/some/path', stdout=subprocess.DEVNULL, stderr=subprocess.PIPE),
         mock.call().communicate(),
         mock.call(['git', 'reset', '--hard', '4a4109c3e85908b6899b1aa291570f7c7b5a0cb5'],
                   cwd='/some/path', stdout=subprocess.DEVNULL, stderr=subprocess.PIPE),
