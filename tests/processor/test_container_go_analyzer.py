@@ -144,9 +144,9 @@ class TestContainerGoAnalyzerRun:
     @pytest.mark.parametrize('opts', [None, ['-x']])
     @mock.patch(MODULE + '.subprocess.Popen')
     @mock.patch(MODULE + '.ContainerGoAnalyzer._process_go_module')
-    def test_run_backvendor_err(self, mock_process_go_module, mock_popen,
-                                import_path, excludes, opts):
-        """Test a failure path in the _run_backvendor method."""
+    def test_run_retrodep_err(self, mock_process_go_module, mock_popen,
+                              import_path, excludes, opts):
+        """Test a failure path in the _run_retrodep method."""
         attrs = {
             'communicate.return_value': ('', ''),
             'wait.return_value': 1,
@@ -156,8 +156,8 @@ class TestContainerGoAnalyzerRun:
         mock_popen.return_value = process_mock
         analyzer = ContainerGoAnalyzer()
         with pytest.raises(RuntimeError):
-            analyzer._run_backvendor('/source', import_path=import_path, excludes=excludes,
-                                     opts=opts)
+            analyzer._run_retrodep('/source', import_path=import_path, excludes=excludes,
+                                   opts=opts)
 
         mock_process_go_module.assert_not_called()
 
@@ -201,11 +201,11 @@ class TestContainerGoAnalyzerRun:
             },
         ]
 
-        # Create the backvendor output.
+        # Create the retrodep output.
         output = ''.join('{mod}\t{ver}\t{repo}\t{rev}\n'.format(**mod)
                          for mod in modules)
 
-        # Set up a mock for backvendor.
+        # Set up a mock for retrodep.
         attrs = {
             'communicate.return_value': (
                 # stdout

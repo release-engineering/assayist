@@ -21,11 +21,11 @@ class ContainerGoAnalyzer(Analyzer):
     GOVERSION = 'goversion'
 
     # Backvendor executable path.
-    BACKVENDOR = 'backvendor'
+    RETRODEP = 'retrodep'
 
-    # Output format template for backvendor.
+    # Output format template for retrodep.
     # The module name will be followed by fields in this format.
-    BACKVENDOR_TEMPLATE = '\t{{.Ver}}\t{{.Repo}}\t{{.Rev}}'
+    RETRODEP_TEMPLATE = '\t{{.Ver}}\t{{.Repo}}\t{{.Rev}}'
 
     # Types of identified source modules
     UPSTREAM = 'upstream'
@@ -52,7 +52,7 @@ class ContainerGoAnalyzer(Analyzer):
         :raises AnalysisFailure: if the analyzer completed with errors
         """
         # Check we have access to the executables we need.
-        assert_command(self.BACKVENDOR)
+        assert_command(self.RETRODEP)
         assert_command(self.GOVERSION)
 
         build_info = self.read_metadata_file(self.BUILD_FILE)
@@ -111,7 +111,7 @@ class ContainerGoAnalyzer(Analyzer):
                                   .format("\n  ".join(failures)))
 
     def _process_git_source(self, source_location, srcdir):
-        """Run backvendor on the dist-git repository source code.
+        """Run retrodep on the dist-git repository source code.
 
         Exclude files known to be specific to the git repository and
         not expected to be upstream.
@@ -167,9 +167,9 @@ class ContainerGoAnalyzer(Analyzer):
 
         return import_path
 
-    def _run_backvendor(self, srcdir, import_path=None, excludes=None,
-                        opts=None):
-        """Run backvendor and returns its output.
+    def _run_retrodep(self, srcdir, import_path=None, excludes=None,
+                      opts=None):
+        """Run retrodep and returns its output.
 
         :param srcdir: path to source code to examine
         :param str/None import_path: import path for top-level module
@@ -179,7 +179,7 @@ class ContainerGoAnalyzer(Analyzer):
         :rtype: (str, str)
         """
         with tempfile.NamedTemporaryFile(mode='wt') as excludes_file:
-            options = ['-debug', '-x', '-template', self.BACKVENDOR_TEMPLATE]
+            options = ['-debug', '-x', '-template', self.RETRODEP_TEMPLATE]
             if import_path:
                 options += ['-importpath', import_path]
 
@@ -191,7 +191,7 @@ class ContainerGoAnalyzer(Analyzer):
             if opts:
                 options += opts
 
-            cmd = [self.BACKVENDOR] + options + [srcdir]
+            cmd = [self.RETRODEP] + options + [srcdir]
             log.info(f'Running {cmd}')
             bv = subprocess.Popen(cmd, universal_newlines=True,
                                   stdout=subprocess.PIPE,
@@ -206,15 +206,15 @@ class ContainerGoAnalyzer(Analyzer):
         return stdout, stderr
 
     def _import_paths_known(self, srcdir, excludes=None):
-        """Run backvendor to ask it if is has all the information it needs.
+        """Run retrodep to ask it if is has all the information it needs.
 
         :param srcdir: path to source code to examine
         :param list/None excludes: list of globs to ignore
-        :return: whether backvendor has enough information
+        :return: whether retrodep has enough information
         :rtype: bool
         """
         try:
-            self._run_backvendor(srcdir, excludes=excludes, opts=['-only-importpath'])
+            self._run_retrodep(srcdir, excludes=excludes, opts=['-only-importpath'])
         except RuntimeError:
             return False
 
@@ -222,21 +222,21 @@ class ContainerGoAnalyzer(Analyzer):
 
     def _process_source_code(self, source_location, srcdir, import_path=None,
                              excludes=None):
-        """Run backvendor on the source code and parse its output.
+        """Run retrodep on the source code and parse its output.
 
         :param SourceLocation source_location: local source code DB node
         :param str srcdir: path to source code to examine
         :param str/None import_path: import path for top-level module
         :param list/None excludes: list of globs to ignore
         """
-        stdout, stderr = self._run_backvendor(srcdir, import_path=import_path,
-                                              excludes=excludes)
+        stdout, stderr = self._run_retrodep(srcdir, import_path=import_path,
+                                            excludes=excludes)
 
-        # Parse the output from backvendor.
+        # Parse the output from retrodep.
         for line in stdout.splitlines():
             fields = line.split('\t')
             if len(fields) != 4:
-                log.error(f'invalid backvendor output: {line}')
+                log.error(f'invalid retrodep output: {line}')
                 continue
 
             mod, ver, repo, rev = fields
@@ -252,7 +252,7 @@ class ContainerGoAnalyzer(Analyzer):
 
     def _process_go_module(self, source_location, srctype,
                            mod, ver, repo, rev):
-        """Update the database with the information from backvendor.
+        """Update the database with the information from retrodep.
 
         :param SourceLocation source_location: local source location DB node
         :param str srctype: either self.UPSTREAM or self.VENDORED

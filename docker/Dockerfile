@@ -31,8 +31,8 @@ RUN dnf -y install https://kojipkgs.fedoraproject.org//packages/python-neomodel/
 
 # Tools needed for Go analysis
 RUN go get rsc.io/goversion
-RUN go get github.com/release-engineering/backvendor
-RUN mv ~/go/bin/goversion ~/go/bin/backvendor /usr/bin/
+RUN go get github.com/release-engineering/retrodep
+RUN mv ~/go/bin/goversion ~/go/bin/retrodep /usr/bin/
 
 RUN mkdir /src
 WORKDIR /src
