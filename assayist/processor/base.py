@@ -429,3 +429,30 @@ class Analyzer(ABC):
                 buffer = f.read(BLOCKSIZE)
 
         return func.hexdigest()
+
+    @staticmethod
+    def walk(top, extensions=None):
+        """
+        Walk the directories under top, generating all paths to the files.
+
+        If a list of extensions is provided results are limited to only those endings.
+        Note that this method does not follow symlinks, which is desired. We were getting
+        stuck following near-infinite loops (limited by MAX_PATH) following symlink loops.
+        Use only for applications where it is only important that you find all files, not
+        where you need to have found all paths to all files.
+
+        :param str top: path to the directory that is the root of the search
+        :param list extensions: A list of extensions to limit the results with. If None
+                                (default) all files will be returned. Example:
+                                ['.rpm', '.tar.gz']
+        :return: Iterable of byte-string paths to the files.
+        :rtype: Iterable
+        """
+        if extensions:
+            extensions = tuple(extensions)  # don't know why, but it has to be a tuple
+
+        for path, dirs, files in os.walk(top):
+            for f in os.scandir(path):
+                if f.is_file(follow_symlinks=False) and (not extensions or
+                                                         f.name.endswith(extensions)):
+                    yield f.path

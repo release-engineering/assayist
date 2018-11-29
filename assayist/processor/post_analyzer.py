@@ -1,6 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0+
 
-import glob
 import os
 
 from assayist.common.models import content
@@ -10,7 +9,7 @@ from assayist.processor.logging import log
 
 # List of directories to ignore when searching for unknown files.
 # Do not include the leading root dir because the analyzer works with paths relative to the
-# unpacked content.
+# unpacked content. Must be a tuple.
 IGNORED_DIRS = (
     'var/lib/yum/',  # Yum ghost files
     'var/log/',  # Log files
@@ -45,14 +44,10 @@ class PostAnalyzer(Analyzer):
             # Assume that the artifact being analyzed was created by the main analyzer.
             archive_obj = content.Artifact.nodes.get(filename=archive)
 
-            search_path = os.path.join(path_to_archive, '**')
-            for unknown_file in glob.iglob(search_path, recursive=True):
-                if not os.path.isfile(unknown_file):
-                    continue
-
+            for unknown_file in self.walk(path_to_archive):
                 path, filename = os.path.split(os.path.relpath(unknown_file, path_to_archive))
 
-                if any(path.startswith(ignored_dir) for ignored_dir in IGNORED_DIRS):
+                if path.startswith(IGNORED_DIRS):
                     continue
 
                 log.info(f'Found unknown file in {archive}: /{path}/{filename}')
