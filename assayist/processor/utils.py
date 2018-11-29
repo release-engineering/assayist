@@ -2,17 +2,18 @@
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import tarfile
 import zipfile
-import re
+from urllib import parse
 
 import koji
 
 from assayist.processor.configuration import config
-from assayist.processor.logging import log
 from assayist.processor.error import BuildSourceNotFound, BuildTypeNotSupported, BuildInvalidState
+from assayist.processor.logging import log
 
 
 def get_koji_session():  # pragma: no cover
@@ -264,6 +265,33 @@ def get_source_of_build(build_info):
     raise BuildSourceNotFound(no_source_msg)
 
 
+def parse_source_url(url):
+    """Parse the source URL and return a normalized Git repo location URL and an identifier.
+
+    :param str url: source url
+    :return: tuple consisting of a URL and a commit-ish
+    :rtype: tuple
+    """
+    url = parse.urlsplit(url)
+    commit_id = url.fragment
+
+    # Certain URLs specified in the build's Source field do not use a correct combination of
+    # protocols that Git understands.
+    scheme = re.sub(r'^git\+http', r'http', url.scheme)
+
+    # Custom heuristics to make a URL valid
+    path = url.path
+    if 'code.engineering' in url.hostname:
+        if 'gerrit' not in path:
+            path = '/gerrit' + path
+        scheme = 'https'
+
+    # Purposefully use hostname instead of netloc to strip user and port if present.
+    url = parse.urlunsplit((scheme, url.hostname, path, '', ''))
+
+    return url, commit_id
+
+
 def download_source(build_info, output_dir, sources_cmd=None):
     """
     Download the source (from dist-git) that was used in the specified build.
@@ -280,15 +308,9 @@ def download_source(build_info, output_dir, sources_cmd=None):
     assert_command('git')
     assert_command(sources_cmd[0])
 
-    # Certain URLs specified in the build's Source field do not specify a correct
-    # combination of protocols that Git understands.
-    source_url = re.sub(r'^git\+http', r'http', build_info['source'])
+    url, commit_id = parse_source_url(build_info['source'])
     log.info(f'Cloning source for {build_info["id"]}')
 
-    url, _, commit_id = source_url.partition('#')
-    # Sometimes the source URL includes a "?" with an optional identifier; strip this so we're
-    # left with a bare URL.
-    url = url.split('?', 1)[0]
     cmd = ['git', 'clone', url, output_dir]
     process = subprocess.Popen(cmd, cwd=output_dir,
                                stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
@@ -307,7 +329,7 @@ def download_source(build_info, output_dir, sources_cmd=None):
     if process.returncode != 0:
         if 'Could not parse object' in error_output:
             raise BuildSourceNotFound(
-                f'Commit {commit_id} was not found in {source_url} in build {build_info["id"]}'
+                f'Commit {commit_id} was not found in {url} in build {build_info["id"]}'
             )
         raise RuntimeError(f'The command "{" ".join(cmd)}" failed with: {error_output}')
 
