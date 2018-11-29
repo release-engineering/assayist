@@ -67,10 +67,86 @@ class TestContainerGoAnalyzerRun:
         mock_process_source_code.assert_called_once()
         mock_claim_go_executables.assert_called_once()
 
+    @pytest.mark.parametrize('content,expect', [
+        (
+            dedent("""\
+            FROM scratch
+            """).rstrip(),
+            None,
+        ),
+
+        (
+            dedent("""\
+            FROM scratch
+            LABEL io.openshift.source-repo-url=""
+            """).rstrip(),
+            None,
+        ),
+
+        (
+            dedent("""\
+            FROM scratch
+            LABEL io.openshift.source-repo-url="https://example.com/example"
+            """).rstrip(),
+            'example.com/example',
+        ),
+
+        (
+            dedent("""\
+            FROM scratch
+            LABEL io.openshift.source-repo-url="example.com/example"
+            """).rstrip(),
+            'example.com/example',
+        ),
+    ])
+    def test_get_import_path_override(self, content, expect, tmpdir):
+        """Test the _get_import_path_override method."""
+        df = tmpdir.join('Dockerfile')
+        df.write(content)
+
+        # Call the method we're testing.
+        analyzer = ContainerGoAnalyzer()
+        override = analyzer._get_import_path_override(str(tmpdir))
+        assert override == expect
+
+    @pytest.mark.parametrize('import_path', (None, 'example.com/example'))
+    @mock.patch(MODULE + '.ContainerGoAnalyzer._get_import_path_override')
+    @mock.patch(MODULE + '.ContainerGoAnalyzer._import_paths_known')
+    @mock.patch(MODULE + '.ContainerGoAnalyzer._process_source_code')
+    def test_process_git_source(self, mock_process_source_code,
+                                mock_import_paths_known,
+                                mock_get_import_path_override,
+                                import_path):
+        """Test the _process_git_source method."""
+        mock_get_import_path_override.return_value = import_path
+        mock_import_paths_known.return_value = False
+
+        source_location = object()
+        srcdir = '/source'
+
+        analyzer = ContainerGoAnalyzer()
+        analyzer._process_git_source(source_location, srcdir)
+
+        excludes = ContainerGoAnalyzer.DIST_GIT_EXCLUDES
+        mock_get_import_path_override.assert_called_once_with(srcdir)
+        if import_path:
+            mock_import_paths_known.assert_called_once_with(srcdir,
+                                                            excludes=excludes)
+        else:
+            mock_import_paths_known.assert_not_called()
+
+        mock_process_source_code.assert_called_once_with(source_location, srcdir,
+                                                         import_path=import_path,
+                                                         excludes=excludes)
+
+    @pytest.mark.parametrize('import_path', [None, 'example.com/example'])
+    @pytest.mark.parametrize('excludes', [None, ['Dockerfile']])
+    @pytest.mark.parametrize('opts', [None, ['-x']])
     @mock.patch(MODULE + '.subprocess.Popen')
     @mock.patch(MODULE + '.ContainerGoAnalyzer._process_go_module')
-    def test_process_source_code_err(self, mock_process_go_module, mock_popen):
-        """Test a failure path in the _process_source_code method."""
+    def test_run_backvendor_err(self, mock_process_go_module, mock_popen,
+                                import_path, excludes, opts):
+        """Test a failure path in the _run_backvendor method."""
         attrs = {
             'communicate.return_value': ('', ''),
             'wait.return_value': 1,
@@ -80,7 +156,8 @@ class TestContainerGoAnalyzerRun:
         mock_popen.return_value = process_mock
         analyzer = ContainerGoAnalyzer()
         with pytest.raises(RuntimeError):
-            analyzer._process_source_code(self.source_location, '/source')
+            analyzer._run_backvendor('/source', import_path=import_path, excludes=excludes,
+                                     opts=opts)
 
         mock_process_go_module.assert_not_called()
 

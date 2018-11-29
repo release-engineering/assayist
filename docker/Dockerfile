@@ -16,6 +16,7 @@ RUN dnf -y install \
   brewkoji \
   # Install rhpkg for go analyzer
   rhpkg \
+  python3-dockerfile-parse \
   git-core \
   cpio \
   python3-koji \

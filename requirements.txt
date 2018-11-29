@@ -1,2 +1,3 @@
 koji
 neomodel>=3.2.8
+dockerfile-parse>=0.0.11

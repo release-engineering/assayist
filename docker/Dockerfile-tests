@@ -6,6 +6,7 @@ RUN dnf -y install \
   --setopt=tsflags=nodocs \
   nmap-ncat \
   python3-devel \
+  python3-dockerfile-parse \
   python3-flake8 \
   python3-koji \
   python3-mock \
