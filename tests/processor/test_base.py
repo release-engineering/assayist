@@ -119,3 +119,59 @@ def test_component_get_or_create_singleton():
     # Different name, but in the alternatives list
     c3 = Component.get_or_create_singleton('', 'python2-requests', 'rpm')
     assert c1 == c3
+
+
+def create_test_file(test_dir, extension, content):
+    """Touch files in the test directory."""
+    x = os.path.join(test_dir, 'test_file.' + extension)
+    with open(x, 'a') as f:
+        f.write(content)
+    return x
+
+
+def test_walk():
+    """Test the walk method correctly discoveres all files it's supposed to."""
+    expected_files = set()
+    expected_list = []
+    with tempfile.TemporaryDirectory() as temp_dir:
+        def create_test_archive(expected, *args):
+            global num_expected
+            new_dir = os.path.join(temp_dir, *args[:-1])
+            try:
+                os.makedirs(new_dir)
+            except FileExistsError:
+                pass
+            f = create_test_file(new_dir, args[-1], 'content')
+            if expected:
+                expected_files.add(f)
+                expected_list.append(f)
+
+        extensions = ['.rpm', '.jar', '.tar', '.zip', '.tar.gz', '.kar']
+        create_test_archive(True, 'path', 'to', 'some', 'nested', 'thing.rpm')
+        create_test_archive(True, 'path', 'to', 'some', 'nested', 'thing.jar')
+        create_test_archive(False, 'path', 'to', 'some', 'nested', 'thing.txt')
+        create_test_archive(True, 'another', 'nested', 'path', 'thing.tar')
+        create_test_archive(True, 'another', 'nested', 'path', 'thing.zip')
+        create_test_archive(True, 'another', 'nested', 'path', 'thing.tar.gz')
+        create_test_archive(False, 'another', 'nested', 'path', 'thing.csv')
+        # Directory that has an "extension" should not be found, but files in it should be.
+        create_test_archive(True, 'path', 'with', 'weird', 'dirname.jar', 'thing.kar')
+        # Note that the next two symlinks intentionally create a loop.
+        os.symlink(os.path.join(temp_dir, 'another', 'nested'),
+                   os.path.join(temp_dir, 'path', 'to', 'dir'),
+                   target_is_directory=True)
+        os.symlink(os.path.join(temp_dir, 'path', 'to'),
+                   os.path.join(temp_dir, 'another', 'nested', 'dir'),
+                   target_is_directory=True)
+        os.symlink(os.path.join(temp_dir, 'another', 'nested', 'path', 'thing.tar'),
+                   os.path.join(temp_dir, 'path', 'to', 'file'))
+
+        found_files = set()
+        found_list = []
+        analyzer = DummyAnalyzer(temp_dir)
+        for f in analyzer.walk(temp_dir, extensions=extensions):
+            found_files.add(f)
+            found_list.append(f)
+
+        assert found_files == expected_files
+        assert len(found_list) == len(expected_list)

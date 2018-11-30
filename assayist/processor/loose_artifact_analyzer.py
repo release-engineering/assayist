@@ -1,6 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0+
 
-import glob
 import os
 
 from hashlib import md5
@@ -56,7 +55,7 @@ class LooseArtifactAnalyzer(Analyzer):
         # Examine the source for embedded artifacts.
         source_path = os.path.join(self.input_dir, self.SOURCE_DIR)
         source_embedded_artifacts = []
-        for loose_artifact in self.files_to_examine(source_path):
+        for loose_artifact in self.walk(source_path, extensions=self.FILE_EXTENSIONS):
             # If we find it locally don't bother asking Koji about it again.
             artifact = self.local_lookup(loose_artifact)
             if artifact:
@@ -78,7 +77,7 @@ class LooseArtifactAnalyzer(Analyzer):
             for source_artifact in source_embedded_artifacts:
                 original_artifact.embedded_artifacts.connect(source_artifact)
 
-            for loose_artifact in self.files_to_examine(path_to_archive):
+            for loose_artifact in self.walk(path_to_archive, extensions=self.FILE_EXTENSIONS):
                 relative_filepath = os.path.relpath(loose_artifact, path_to_archive)
 
                 try:
@@ -159,20 +158,6 @@ class LooseArtifactAnalyzer(Analyzer):
             for archive in os.listdir(archive_dir):
                 path_to_archive = os.path.join(archive_dir, archive)
                 yield archive, path_to_archive
-
-    def files_to_examine(self, path_to_archive):
-        """
-        Generate the files with extensions we care about.
-
-        :param str path_to_archive: The absolute path to the archive we are currently examining.
-        :return: All filepaths that we want to examine as potential embedded Artifacts.
-        :rtype: Iterable
-        """
-        for extension in self.FILE_EXTENSIONS:
-            search_path = os.path.join(path_to_archive, '**/*.' + extension)
-            for loose_artifact in glob.iglob(search_path, recursive=True):
-                if os.path.isfile(loose_artifact):
-                    yield loose_artifact
 
     def add_to_and_maybe_execute_batch(self, loose_artifact, path_to_archive, claim=False):
         """

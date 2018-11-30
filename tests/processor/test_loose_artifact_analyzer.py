@@ -84,37 +84,6 @@ def test_unpacked_archives():
         assert found_paths == expected_paths
 
 
-def test_files_to_examine():
-    """Test the files_to_examine method correctly discoveres all files it's supposed to."""
-    expected_files = set()
-    with tempfile.TemporaryDirectory() as temp_dir:
-        def create_test_archive(expected, *args):
-            new_dir = os.path.join(temp_dir, *args[:-1])
-            try:
-                os.makedirs(new_dir)
-            except FileExistsError:
-                pass
-            f = create_test_file(new_dir, args[-1], 'content')
-            if expected:
-                expected_files.add(f)
-
-        create_test_archive(True, 'path', 'to', 'some', 'nested', 'thing.rpm')
-        create_test_archive(True, 'path', 'to', 'some', 'nested', 'thing.jar')
-        create_test_archive(False, 'path', 'to', 'some', 'nested', 'thing.txt')
-        create_test_archive(True, 'another', 'nested', 'path', 'thing.tar')
-        create_test_archive(True, 'another', 'nested', 'path', 'thing.zip')
-        create_test_archive(True, 'another', 'nested', 'path', 'thing.tar.gz')
-        create_test_archive(False, 'another', 'nested', 'path', 'thing.csv')
-        create_test_archive(True, 'path', 'with', 'weird', 'dirname.jar', 'thing.kar')
-
-        analyzer = LooseArtifactAnalyzer(temp_dir)
-        found_files = set()
-        for f in analyzer.files_to_examine(temp_dir):
-            found_files.add(f)
-
-        assert found_files == expected_files
-
-
 def test_local_lookup():
     """Test the local_lookup function correctly finds Artifacts that already exist."""
     CONTENT = 'my content'
