@@ -312,7 +312,7 @@ def download_source(build_info, output_dir, sources_cmd=None):
     log.info(f'Cloning source for {build_info["id"]}')
 
     cmd = ['git', 'clone', url, output_dir]
-    process = subprocess.Popen(cmd, cwd=output_dir,
+    process = subprocess.Popen(cmd,
                                stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
 
     _, error_output = process.communicate()

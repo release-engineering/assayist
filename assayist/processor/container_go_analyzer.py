@@ -193,7 +193,7 @@ class ContainerGoAnalyzer(Analyzer):
 
             cmd = [self.BACKVENDOR] + options + [srcdir]
             log.info(f'Running {cmd}')
-            bv = subprocess.Popen(cmd, cwd=srcdir, universal_newlines=True,
+            bv = subprocess.Popen(cmd, universal_newlines=True,
                                   stdout=subprocess.PIPE,
                                   stderr=subprocess.PIPE)
 
