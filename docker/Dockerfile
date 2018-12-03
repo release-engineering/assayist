@@ -20,14 +20,11 @@ RUN dnf -y install \
   git-core \
   cpio \
   python3-koji \
+  'python3-neomodel >= 3.3.0' \
   golang \
   && dnf clean all \
   # workaround for unpacking broken rpms in unprivileged container
   && setcap CAP_DAC_OVERRIDE+ep /usr/bin/cpio
-
-# We require at least neomodel 3.2.9 to get the bugfix in dd42548e4a3d484fd1265be834893f1212be680d.
-# Fedora currently only has rpms for 3.2.8. Let's install 3.3.0 from koji directly.
-RUN dnf -y install https://kojipkgs.fedoraproject.org//packages/python-neomodel/3.3.0/1.fc28/noarch/python3-neomodel-3.3.0-1.fc28.noarch.rpm
 
 # Tools needed for Go analysis
 RUN go get rsc.io/goversion
