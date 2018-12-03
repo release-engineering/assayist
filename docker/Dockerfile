@@ -27,9 +27,9 @@ RUN dnf -y install \
   && setcap CAP_DAC_OVERRIDE+ep /usr/bin/cpio
 
 # Tools needed for Go analysis
-RUN go get rsc.io/goversion
-RUN go get github.com/release-engineering/retrodep
-RUN mv ~/go/bin/goversion ~/go/bin/retrodep /usr/bin/
+RUN go get rsc.io/goversion && \
+    go get github.com/release-engineering/retrodep && \
+    mv ~/go/bin/goversion ~/go/bin/retrodep /usr/bin/
 
 RUN mkdir /src
 WORKDIR /src
