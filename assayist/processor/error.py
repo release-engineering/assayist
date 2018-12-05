@@ -7,6 +7,12 @@ class BuildTypeNotSupported(NotImplementedError):
     pass
 
 
+class BuildTypeNotFound(RuntimeError):
+    """Signify that a build's type could not be determined."""
+
+    pass
+
+
 class BuildSourceNotFound(RuntimeError):
     """Signify that the source of a Koji build couldn't be determined."""
 
