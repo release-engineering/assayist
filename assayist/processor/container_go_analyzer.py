@@ -128,9 +128,10 @@ class ContainerGoAnalyzer(Analyzer):
 
         # If we have a reasonable guess, see if we will need to use it.
         import_path = None
-        if (import_path_from_source_url and
-                not self._import_paths_known(srcdir,
-                                             excludes=self.DIST_GIT_EXCLUDES)):
+        if (
+                import_path_from_source_url
+                and not self._import_paths_known(srcdir, excludes=self.DIST_GIT_EXCLUDES)
+        ):
             import_path = import_path_from_source_url
 
         self._process_source_code(source_location, srcdir,

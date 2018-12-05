@@ -453,6 +453,6 @@ class Analyzer(ABC):
 
         for path, dirs, files in os.walk(top):
             for f in os.scandir(path):
-                if f.is_file(follow_symlinks=False) and (not extensions or
-                                                         f.name.endswith(extensions)):
+                if f.is_file(follow_symlinks=False) and (not extensions
+                                                         or f.name.endswith(extensions)):
                     yield f.path
