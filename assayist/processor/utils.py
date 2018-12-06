@@ -12,7 +12,9 @@ from urllib import parse
 import koji
 
 from assayist.processor.configuration import config
-from assayist.processor.error import BuildSourceNotFound, BuildTypeNotSupported, BuildInvalidState
+from assayist.processor.error import (
+    BuildSourceNotFound, BuildTypeNotSupported, BuildInvalidState, BuildTypeNotFound,
+)
 from assayist.processor.logging import log
 
 
@@ -67,7 +69,7 @@ def get_build_type(build_info, task_info):
         return None
 
     # Check if this is a container build.
-    if extra.get('container_koji_task_id'):
+    if extra.get('container_koji_task_id') or extra.get('filesystem_koji_task_id'):
         return 'buildContainer'
 
     # Check if this is a PNC maven build.
@@ -123,6 +125,9 @@ def download_build_data(build_identifier, output_dir='/metadata'):
     # Exit early if the type of this build is not supported since none of the analyzers will do
     # anything meaningful with the data downloaded below anyway.
     if build_type not in Analyzer.SUPPORTED_BUILD_TYPES:
+        if build_type is None:
+            raise BuildTypeNotFound(f'Could not determine build type for build {build_identifier}')
+
         raise BuildTypeNotSupported(
             f'Build {build_identifier} type "{build_type}" is not supported for analysis')
 

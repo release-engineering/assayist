@@ -121,7 +121,7 @@ class Checksum(AssayistStructuredNode):
     external_artifacts = RelationshipTo('ExternalArtifact', 'CHECKSUMS')
 
     @staticmethod
-    def guess_type(checksum):
+    def guess_type(checksum):  # pragma: no cover
         """
         Guess the checksum type from its length.
 

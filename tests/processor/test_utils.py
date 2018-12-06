@@ -13,7 +13,9 @@ import pytest
 
 from assayist.processor import utils
 from assayist.processor.base import Analyzer
-from assayist.processor.error import BuildTypeNotSupported, BuildSourceNotFound, BuildInvalidState
+from assayist.processor.error import (
+    BuildTypeNotSupported, BuildSourceNotFound, BuildInvalidState, BuildTypeNotFound
+)
 
 
 def test_assert_command():
@@ -164,6 +166,25 @@ def test_download_build_unsupported_build_type(m_write_file, m_get_koji_session,
     # Assert that the brew calls we expect happened.
     m_koji.getBuild.assert_called_once_with(1)
     m_koji.getTaskInfo.assert_called_once_with(123)
+
+
+@mock.patch('assayist.processor.utils.assert_command')
+@mock.patch('assayist.processor.utils.get_koji_session')
+@mock.patch('assayist.processor.utils.write_file')
+def test_download_build_unknown_type(m_write_file, m_get_koji_session, m_assert_command):
+    """Test download_build_data function for build whose type cannot be determined."""
+    BUILD_INFO = {'id': 1, 'source': 'http://some.url', 'extra': {},
+                  'state': koji.BUILD_STATES['COMPLETE']}
+
+    m_koji = mock.Mock()
+    m_koji.getBuild.return_value = BUILD_INFO
+    m_get_koji_session.return_value = m_koji
+
+    with pytest.raises(BuildTypeNotFound):
+        utils.download_build_data(1, '/some/path')
+
+    # Assert that the brew calls we expect happened.
+    m_koji.getBuild.assert_called_once_with(1)
 
 
 @mock.patch('assayist.processor.utils.assert_command')
