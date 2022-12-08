@@ -416,7 +416,26 @@ def unpack_container_image(container_image_file, output_dir):
 
     # Extract the file system contents from the last layer
     with tarfile.open(layer_to_unpack) as tar:
-        tar.extractall(output_dir)
+        def is_within_directory(directory, target):
+            
+            abs_directory = os.path.abspath(directory)
+            abs_target = os.path.abspath(target)
+        
+            prefix = os.path.commonprefix([abs_directory, abs_target])
+            
+            return prefix == abs_directory
+        
+        def safe_extract(tar, path=".", members=None, *, numeric_owner=False):
+        
+            for member in tar.getmembers():
+                member_path = os.path.join(path, member.name)
+                if not is_within_directory(path, member_path):
+                    raise Exception("Attempted Path Traversal in Tar File")
+        
+            tar.extractall(path, members, numeric_owner=numeric_owner) 
+            
+        
+        safe_extract(tar, output_dir)
 
     # Remove extracted layer .tar file
     shutil.rmtree(os.path.split(layer_to_unpack)[0])
@@ -445,7 +464,26 @@ def unpack_tar(tar_file, output_dir):  # pragma: no cover
     :param str output_dir: the path to unpack the archive to
     """
     with tarfile.open(tar_file) as tar:
-        tar.extractall(output_dir)
+        def is_within_directory(directory, target):
+            
+            abs_directory = os.path.abspath(directory)
+            abs_target = os.path.abspath(target)
+        
+            prefix = os.path.commonprefix([abs_directory, abs_target])
+            
+            return prefix == abs_directory
+        
+        def safe_extract(tar, path=".", members=None, *, numeric_owner=False):
+        
+            for member in tar.getmembers():
+                member_path = os.path.join(path, member.name)
+                if not is_within_directory(path, member_path):
+                    raise Exception("Attempted Path Traversal in Tar File")
+        
+            tar.extractall(path, members, numeric_owner=numeric_owner) 
+            
+        
+        safe_extract(tar, output_dir)
 
     log.info(f'Successfully unpacked {tar_file} to {output_dir}')
 
